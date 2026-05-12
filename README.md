@@ -1,19 +1,21 @@
-# beonos-controller
+<img width="492" height="184" alt="BEONOS CONTROLLER" src="https://github.com/user-attachments/assets/8dabba41-4358-4a6c-9672-bfffa8589348" />
 
-A small ESP32-C6 board that intercepts the Beogram RX2 turntable's button-controller flat cable, reads the COP410 microcontroller's on/off and play/pause signals, and bridges them to a Sonos speaker over UPnP.
+# beonos: Sonos integration for vintage Bang & Olufsen turntables
+
+A small ESP32-C6 board that intercepts the Beogram RX2 (and likely other) turntable's button controls, senses play/pause status, and connects them to a Sonos speaker over UPnP.
 
 ## What it does
 
 - **Turntable → Sonos**: when you start the turntable, the speaker switches to Line-In and starts playing. When you pause or turn off the turntable, the speaker pauses.
-- **Sonos → turntable**: selecting Line-In on the Sonos starts the turntable (presses Cue). Switching away or pausing on the speaker stops the turntable. If you start Sonos Line-In and there's no record on the platter, the firmware notices and pauses Sonos so you don't blast the noise floor.
+- **Sonos → turntable**: selecting Line-In on the Sonos starts the turntable (presses Cue). Switching away or pausing on the speaker stops the turntable. If you start Sonos Line-In and there's no record on the platter, the firmware notices and pauses Sonos.
 
 ## Hardware
 
 - **MCU**: Seeed Studio XIAO ESP32-C6 (castellated edge-mount module)
-- **Button drivers**: 2× LTV-356T optocouplers — when the ESP fires its GPIO high, the opto switches +12V from the keyboard supply onto the PLAYPAUSE / CUE button line, mimicking a physical button press. Galvanically isolates the ESP from the 12V switching side.
+- **Button drivers**: 2× LTV-356T optocouplers
 - **Level shifters**: 2× 10k/15k voltage dividers — drop the COP410's 5.3V logic to ~3.18V for the ESP's 3.3V GPIOs
 - **Decoupling**: 10µF + 100nF on the 5.3V rail (tapped from the Beogram's main board)
-- **Connectors**: two 1×8 horizontal headers (one socket, one header) for in-line splice into the Beogram's existing button-controller cable. Carries +12V supply, GND, and the BTN signals.
+- **Connectors**: two 1×8 horizontal headers (one socket, one header) for in-line splice into the Beogram's existing button controller cable.
 
 PCB sources: `beogram-esp32.kicad_pcb`, `.kicad_sch`, `.kicad_pro`. Gerbers in [`gerbers/`](gerbers/). BOM in [`bom.csv`](bom.csv).
 
