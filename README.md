@@ -1,4 +1,4 @@
-<img width="492" height="184" alt="BEONOS CONTROLLER" src="https://github.com/user-attachments/assets/8dabba41-4358-4a6c-9672-bfffa8589348" />
+<img width="492" height="184" alt="beonos" src="https://github.com/user-attachments/assets/0bac70b3-670b-4b0c-a56c-cbdf7ba0482e" />
 
 # beonos: Sonos integration for vintage Bang & Olufsen turntables
 
