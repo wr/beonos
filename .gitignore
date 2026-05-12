@@ -1,0 +1,22 @@
+# Real secrets — copy secrets.yaml.example to secrets.yaml and fill in
+secrets.yaml
+
+# KiCad transient files
+*.lck
+~*.lck
+*.kicad_prl
+*-backups/
+_restore_backup_*/
+*_drc_violations.json
+*.kicad_pcb.zip
+fp-info-cache
+
+# ESPHome build artifacts
+.esphome/
+build/
+
+# OS / editor
+.DS_Store
+.vscode/
+*.swp
+.history/

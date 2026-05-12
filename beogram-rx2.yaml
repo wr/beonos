@@ -1,0 +1,471 @@
+# Beogram RX2 → Sonos bridge, ESP32-C6 (Seeed XIAO)
+#
+# Pin map (matches the PCB):
+#   GPIO0  (D0) — IN_OnOff_3V3      input from COP410 pin 11 via 10k/15k divider
+#                                   COP410: LOW = arm-in (turntable ON), HIGH = arm-out (OFF)
+#                                   We invert so the sensor reads true when the turntable is on.
+#   GPIO1  (D1) — IN_PlayPause_3V3  input from COP410 pin 12 via 10k/15k divider
+#                                   COP410: HIGH = playing, LOW = paused
+#   GPIO16 (D6) — DRV_PlayPause     drives U2 optocoupler LED; pulse HIGH 500ms
+#                                   to switch +12V onto the PLAYPAUSE button line
+#   GPIO17 (D7) — DRV_Cue           drives U3 optocoupler LED; pulse HIGH 500ms
+#                                   to switch +12V onto the CUE button line
+#
+# All Sonos logic runs on the ESP — it talks UPnP/SOAP to the speaker directly.
+# State is also exposed over the HA API so you can see what's happening and
+# trigger manual button presses from Home Assistant.
+
+substitutions:
+  device_name: beogram-rx2
+  friendly_name: Beogram RX2
+  # How long to wait after pressing Cue before deciding "no record present".
+  no_record_timeout: "6s"
+  # MOSFET pulse width — long enough for the turntable's IC to register.
+  press_pulse: "500ms"
+  # Sonos IP is configurable from Home Assistant — see the `text:` block.
+  # The RINCON UUID is auto-discovered from the speaker on boot.
+  default_sonos_ip: "10.0.1.154"
+
+esphome:
+  name: ${device_name}
+  friendly_name: ${friendly_name}
+  on_boot:
+    priority: -100
+    then:
+      # Wait for inputs to settle before bridge logic kicks in, so we don't
+      # mistake startup transients for state changes.
+      - delay: 3s
+      - globals.set:
+          id: system_ready
+          value: "true"
+      - logger.log: "System ready — bridge logic active"
+      # Pull the speaker's RINCON UUID from its UPnP device description.
+      - script.execute: discover_rincon
+
+esp32:
+  board: seeed_xiao_esp32c6
+  framework:
+    type: esp-idf
+
+logger:
+  level: INFO
+
+api:
+  encryption:
+    key: !secret api_encryption_key
+
+ota:
+  - platform: esphome
+    password: !secret ota_password
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  ap:
+    ssid: "${friendly_name} Fallback"
+    password: !secret fallback_password
+
+http_request:
+  useragent: esphome/${device_name}
+  timeout: 4s
+
+# ── Globals ─────────────────────────────────────────────────────────────────
+
+globals:
+  - id: system_ready
+    type: bool
+    initial_value: "false"
+  - id: prev_turntable_on
+    type: bool
+    initial_value: "false"
+  - id: prev_turntable_playing
+    type: bool
+    initial_value: "false"
+  - id: prev_sonos_line_in
+    type: bool
+    initial_value: "false"
+  - id: prev_sonos_playing
+    type: bool
+    initial_value: "false"
+
+# ── Inputs from the turntable ───────────────────────────────────────────────
+
+binary_sensor:
+  - platform: gpio
+    name: "Turntable On"
+    id: turntable_on
+    pin:
+      number: GPIO0
+      mode:
+        input: true
+        pulldown: true
+      inverted: true   # COP410 pin 11 is LOW when arm is in (playing position)
+    filters:
+      - delayed_on: 50ms
+      - delayed_off: 50ms
+    on_state:
+      then:
+        - script.execute: react_to_turntable
+
+  - platform: gpio
+    name: "Turntable Playing"
+    id: turntable_playing
+    pin:
+      number: GPIO1
+      mode:
+        input: true
+        pulldown: true
+    filters:
+      - delayed_on: 50ms
+      - delayed_off: 50ms
+    on_state:
+      then:
+        - script.execute: react_to_turntable
+
+  # Derived from Sonos polling — published for visibility in HA.
+  - platform: template
+    name: "Sonos Playing"
+    id: sonos_playing
+    lambda: |-
+      return id(sonos_transport).state == "PLAYING";
+    on_state:
+      then:
+        - script.execute: react_to_sonos
+
+  - platform: template
+    name: "Sonos On Line-In"
+    id: sonos_line_in
+    lambda: |-
+      // Line-in URI is "x-rincon-stream:RINCON_xxx"; we just check the prefix.
+      return id(sonos_uri).state.find("x-rincon-stream:") == 0;
+    on_state:
+      then:
+        - script.execute: react_to_sonos
+
+# ── Outputs to the MOSFET drivers ───────────────────────────────────────────
+
+output:
+  - platform: gpio
+    pin: GPIO16
+    id: drv_playpause
+  - platform: gpio
+    pin: GPIO17
+    id: drv_cue
+
+# ── Buttons exposed to HA (and used internally) ─────────────────────────────
+
+button:
+  - platform: template
+    name: "Press Play/Pause"
+    on_press:
+      - script.execute: pulse_playpause
+
+  - platform: template
+    name: "Press Cue"
+    on_press:
+      - script.execute: pulse_cue
+
+  - platform: template
+    name: "Sonos Play"
+    on_press:
+      - script.execute: sonos_play
+  - platform: template
+    name: "Sonos Pause"
+    on_press:
+      - script.execute: sonos_pause
+  - platform: template
+    name: "Sonos Switch to Line-In"
+    on_press:
+      - script.execute: sonos_switch_to_line_in
+  - platform: template
+    name: "Rediscover Sonos RINCON"
+    entity_category: config
+    on_press:
+      - script.execute: discover_rincon
+
+# ── Sonos state (populated by the polling interval) ────────────────────────
+
+text_sensor:
+  - platform: template
+    name: "Sonos Transport State"
+    id: sonos_transport
+    update_interval: never
+  - platform: template
+    name: "Sonos Current URI"
+    id: sonos_uri
+    update_interval: never
+  # Auto-discovered from the speaker's UPnP device description on boot.
+  - platform: template
+    name: "Sonos RINCON UUID"
+    id: sonos_rincon
+    update_interval: never
+    entity_category: diagnostic
+
+sensor:
+  - platform: wifi_signal
+    name: "WiFi Signal"
+    update_interval: 60s
+
+# ── Sonos device config (editable in HA, persists across reboots) ──────────
+
+text:
+  - platform: template
+    name: "Sonos IP"
+    id: sonos_ip
+    optimistic: true
+    restore_value: true
+    initial_value: "${default_sonos_ip}"
+    min_length: 7
+    max_length: 15
+    mode: text
+    entity_category: config
+    on_value:
+      then:
+        # Re-discover when the IP changes
+        - script.execute: discover_rincon
+
+# ── Scripts ─────────────────────────────────────────────────────────────────
+
+script:
+  # Pulse the MOSFET drivers — short to GND for press_pulse, then release.
+  - id: pulse_playpause
+    mode: single
+    then:
+      - logger.log: "Press: PLAYPAUSE"
+      - output.turn_on: drv_playpause
+      - delay: ${press_pulse}
+      - output.turn_off: drv_playpause
+
+  - id: pulse_cue
+    mode: single
+    then:
+      - logger.log: "Press: CUE"
+      - output.turn_on: drv_cue
+      - delay: ${press_pulse}
+      - output.turn_off: drv_cue
+
+  # Sonos SOAP actions. Sonos exposes UPnP at port 1400.
+  # URLs and bodies are built at runtime so the device IP / RINCON can be
+  # changed from Home Assistant without a re-flash.
+  - id: sonos_play
+    mode: single
+    then:
+      - http_request.post:
+          url: !lambda 'return "http://" + id(sonos_ip).state + ":1400/MediaRenderer/AVTransport/Control";'
+          headers:
+            Content-Type: 'text/xml; charset="utf-8"'
+            SOAPACTION: '"urn:schemas-upnp-org:service:AVTransport:1#Play"'
+          body: |-
+            <?xml version="1.0"?><s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"><s:Body><u:Play xmlns:u="urn:schemas-upnp-org:service:AVTransport:1"><InstanceID>0</InstanceID><Speed>1</Speed></u:Play></s:Body></s:Envelope>
+
+  - id: sonos_pause
+    mode: single
+    then:
+      - http_request.post:
+          url: !lambda 'return "http://" + id(sonos_ip).state + ":1400/MediaRenderer/AVTransport/Control";'
+          headers:
+            Content-Type: 'text/xml; charset="utf-8"'
+            SOAPACTION: '"urn:schemas-upnp-org:service:AVTransport:1#Pause"'
+          body: |-
+            <?xml version="1.0"?><s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"><s:Body><u:Pause xmlns:u="urn:schemas-upnp-org:service:AVTransport:1"><InstanceID>0</InstanceID></u:Pause></s:Body></s:Envelope>
+
+  - id: sonos_switch_to_line_in
+    mode: single
+    then:
+      # If discovery hasn't completed yet, run it and wait briefly.
+      - if:
+          condition:
+            lambda: 'return id(sonos_rincon).state.find("RINCON_") != 0;'
+          then:
+            - logger.log: "RINCON not yet known — running discovery first"
+            - script.execute: discover_rincon
+            - delay: 2s
+      - if:
+          condition:
+            lambda: 'return id(sonos_rincon).state.find("RINCON_") == 0;'
+          then:
+            - http_request.post:
+                url: !lambda 'return "http://" + id(sonos_ip).state + ":1400/MediaRenderer/AVTransport/Control";'
+                headers:
+                  Content-Type: 'text/xml; charset="utf-8"'
+                  SOAPACTION: '"urn:schemas-upnp-org:service:AVTransport:1#SetAVTransportURI"'
+                body: !lambda |-
+                  return std::string(
+                    R"(<?xml version="1.0"?><s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"><s:Body><u:SetAVTransportURI xmlns:u="urn:schemas-upnp-org:service:AVTransport:1"><InstanceID>0</InstanceID><CurrentURI>x-rincon-stream:)"
+                  ) + id(sonos_rincon).state + R"(</CurrentURI><CurrentURIMetaData></CurrentURIMetaData></u:SetAVTransportURI></s:Body></s:Envelope>)";
+          else:
+            - logger.log: "RINCON discovery failed — cannot switch to Line-In"
+
+  - id: discover_rincon
+    mode: single
+    then:
+      - http_request.get:
+          url: !lambda 'return "http://" + id(sonos_ip).state + ":1400/xml/device_description.xml";'
+          capture_response: true
+          on_response:
+            then:
+              - lambda: |-
+                  std::string b(body.begin(), body.end());
+                  std::string tag_open = "<UDN>uuid:";
+                  std::string tag_close = "</UDN>";
+                  size_t s = b.find(tag_open);
+                  size_t e = b.find(tag_close);
+                  if (s != std::string::npos && e != std::string::npos) {
+                    s += tag_open.length();
+                    std::string rincon = b.substr(s, e - s);
+                    id(sonos_rincon).publish_state(rincon);
+                    ESP_LOGI("discover", "Sonos RINCON: %s", rincon.c_str());
+                  } else {
+                    ESP_LOGW("discover", "Could not find <UDN> in device description");
+                  }
+
+  # Bridge logic: turntable → Sonos
+  - id: react_to_turntable
+    mode: queued
+    then:
+      - if:
+          condition:
+            lambda: "return !id(system_ready);"
+          then:
+            - logger.log: "react_to_turntable: not ready, skipping"
+            - script.stop: react_to_turntable
+
+      - lambda: |-
+          bool tt_on = id(turntable_on).state;
+          bool tt_play = id(turntable_playing).state;
+          bool was_on = id(prev_turntable_on);
+          bool was_play = id(prev_turntable_playing);
+
+          if (tt_on && !was_on) {
+            ESP_LOGI("bridge", "Turntable turned ON");
+          }
+
+          // Started playing (arm down, motor on)
+          if (tt_on && tt_play && !was_play) {
+            ESP_LOGI("bridge", "Turntable started playing → switch Sonos to Line-In + play");
+            id(sonos_switch_to_line_in).execute();
+            id(sonos_play).execute();
+          }
+          // Paused while still on
+          else if (tt_on && was_play && !tt_play) {
+            ESP_LOGI("bridge", "Turntable paused → pause Sonos if on Line-In");
+            if (id(sonos_line_in).state) id(sonos_pause).execute();
+          }
+          // Turned off
+          else if (was_on && !tt_on) {
+            ESP_LOGI("bridge", "Turntable turned OFF → pause Sonos if on Line-In");
+            if (id(sonos_line_in).state) id(sonos_pause).execute();
+          }
+
+          id(prev_turntable_on) = tt_on;
+          id(prev_turntable_playing) = tt_play;
+
+  # Bridge logic: Sonos → turntable
+  - id: react_to_sonos
+    mode: queued
+    then:
+      - if:
+          condition:
+            lambda: "return !id(system_ready);"
+          then:
+            - script.stop: react_to_sonos
+
+      # Capture rising edge of "Sonos picks line-in and starts playing"
+      # while the turntable is off. Press Cue, then verify a record actually
+      # spun up — if not, pause Sonos to avoid blasting the noise floor.
+      - if:
+          condition:
+            lambda: |-
+              bool now = id(sonos_line_in).state && id(sonos_playing).state;
+              bool was = id(prev_sonos_line_in) && id(prev_sonos_playing);
+              return now && !was && !id(turntable_on).state;
+          then:
+            - logger.log: "Sonos selected Line-In + playing while turntable off → press Cue"
+            - script.execute: pulse_cue
+            - delay: ${no_record_timeout}
+            - if:
+                condition:
+                  and:
+                    - binary_sensor.is_on: sonos_line_in
+                    - binary_sensor.is_off: turntable_on
+                then:
+                  - logger.log: "No record present — pause Sonos"
+                  - script.execute: sonos_pause
+
+      - lambda: |-
+          bool sonos_li = id(sonos_line_in).state;
+          bool sonos_pl = id(sonos_playing).state;
+          bool was_li = id(prev_sonos_line_in);
+          bool was_pl = id(prev_sonos_playing);
+          bool tt_on = id(turntable_on).state;
+          bool tt_play = id(turntable_playing).state;
+
+          // Sonos switched away from line-in while turntable on → turn turntable off
+          if (was_li && !sonos_li && tt_on) {
+            ESP_LOGI("bridge", "Sonos left Line-In → press PLAYPAUSE to stop turntable");
+            id(pulse_playpause).execute();
+          }
+
+          // Sonos started playing on line-in, turntable on but paused → press Cue to play
+          if (sonos_li && sonos_pl && !was_pl && tt_on && !tt_play) {
+            ESP_LOGI("bridge", "Sonos started on Line-In, turntable paused → press CUE");
+            id(pulse_cue).execute();
+          }
+
+          // Sonos paused on line-in, turntable playing → press Cue to pause
+          if (sonos_li && was_pl && !sonos_pl && tt_on && tt_play) {
+            ESP_LOGI("bridge", "Sonos paused on Line-In, turntable playing → press CUE");
+            id(pulse_cue).execute();
+          }
+
+          id(prev_sonos_line_in) = sonos_li;
+          id(prev_sonos_playing) = sonos_pl;
+
+# ── Sonos polling ───────────────────────────────────────────────────────────
+
+interval:
+  - interval: 1s
+    then:
+      # Get transport state (PLAYING / PAUSED_PLAYBACK / STOPPED / TRANSITIONING)
+      - http_request.post:
+          url: !lambda 'return "http://" + id(sonos_ip).state + ":1400/MediaRenderer/AVTransport/Control";'
+          headers:
+            Content-Type: 'text/xml; charset="utf-8"'
+            SOAPACTION: '"urn:schemas-upnp-org:service:AVTransport:1#GetTransportInfo"'
+          body: |-
+            <?xml version="1.0"?><s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"><s:Body><u:GetTransportInfo xmlns:u="urn:schemas-upnp-org:service:AVTransport:1"><InstanceID>0</InstanceID></u:GetTransportInfo></s:Body></s:Envelope>
+          capture_response: true
+          on_response:
+            then:
+              - lambda: |-
+                  std::string b(body.begin(), body.end());
+                  std::string tag_open = "<CurrentTransportState>";
+                  std::string tag_close = "</CurrentTransportState>";
+                  size_t s = b.find(tag_open);
+                  size_t e = b.find(tag_close);
+                  if (s != std::string::npos && e != std::string::npos) {
+                    s += tag_open.length();
+                    id(sonos_transport).publish_state(b.substr(s, e - s));
+                  }
+
+      # Get current URI so we know if we're on Line-In
+      - http_request.post:
+          url: !lambda 'return "http://" + id(sonos_ip).state + ":1400/MediaRenderer/AVTransport/Control";'
+          headers:
+            Content-Type: 'text/xml; charset="utf-8"'
+            SOAPACTION: '"urn:schemas-upnp-org:service:AVTransport:1#GetMediaInfo"'
+          body: |-
+            <?xml version="1.0"?><s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"><s:Body><u:GetMediaInfo xmlns:u="urn:schemas-upnp-org:service:AVTransport:1"><InstanceID>0</InstanceID></u:GetMediaInfo></s:Body></s:Envelope>
+          capture_response: true
+          on_response:
+            then:
+              - lambda: |-
+                  std::string b(body.begin(), body.end());
+                  std::string tag_open = "<CurrentURI>";
+                  std::string tag_close = "</CurrentURI>";
+                  size_t s = b.find(tag_open);
+                  size_t e = b.find(tag_close);
+                  if (s != std::string::npos && e != std::string::npos) {
+                    s += tag_open.length();
+                    id(sonos_uri).publish_state(b.substr(s, e - s));
+                  }
