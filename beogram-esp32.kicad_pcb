@@ -136,7 +136,7 @@
 		(at 144.96 75.04)
 		(descr "SMD rectangular pad as test Point, square 1.5mm side length")
 		(tags "test point SMD pad rectangle square")
-		(property "Reference" "PP"
+		(property "Reference" "TP4"
 			(at 0 -1.6 0)
 			(layer "F.SilkS")
 			(uuid "2f313359-a034-4fdd-a56e-d2d86afc1447")
@@ -1115,7 +1115,7 @@
 		(at 151.45 77.04)
 		(descr "Resistor SMD 0402 (1005 Metric), square (rectangular) end terminal, IPC-7351 nominal, (Body size source: IPC-SM-782 page 72, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf)")
 		(tags "resistor")
-		(property "Reference" "10k"
+		(property "Reference" "R5"
 			(at 0.01 1 0)
 			(layer "F.SilkS")
 			(uuid "7ecd7345-6b26-43a2-a4aa-9abb7841bb80")
@@ -1261,7 +1261,7 @@
 		(at 157.96 79.54 180)
 		(descr "Capacitor SMD 0402 (1005 Metric), square (rectangular) end terminal, IPC-7351 nominal, (Body size source: IPC-SM-782 page 76, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf)")
 		(tags "capacitor")
-		(property "Reference" "10uF"
+		(property "Reference" "C1"
 			(at 0 -1 0)
 			(layer "F.SilkS")
 			(uuid "4bdfe6bd-f615-4843-a371-f217a87de45b")
@@ -1407,7 +1407,7 @@
 		(at 144.96 79.54 180)
 		(descr "Resistor SMD 0402 (1005 Metric), square (rectangular) end terminal, IPC-7351 nominal, (Body size source: IPC-SM-782 page 72, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf)")
 		(tags "resistor")
-		(property "Reference" "15k"
+		(property "Reference" "R8"
 			(at 0 -1 0)
 			(layer "F.SilkS")
 			(uuid "6d63abd3-1871-46eb-a7a7-d3ce26da4c07")
@@ -1843,7 +1843,7 @@
 		(at 151.46 75.04)
 		(descr "SMD rectangular pad as test Point, square 1.5mm side length")
 		(tags "test point SMD pad rectangle square")
-		(property "Reference" "OnOff"
+		(property "Reference" "TP3"
 			(at 0 -1.6 0)
 			(layer "F.SilkS")
 			(uuid "55ed0fff-7556-4cd0-88b3-c8f2d6ce7301")
@@ -2000,7 +2000,7 @@
 		(at 157.5 110.5 -90)
 		(descr "Resistor SMD 0402 (1005 Metric), square (rectangular) end terminal, IPC-7351 nominal, (Body size source: IPC-SM-782 page 72, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf)")
 		(tags "resistor")
-		(property "Reference" "1k"
+		(property "Reference" "R2"
 			(at 0 -1 90)
 			(layer "F.SilkS")
 			(uuid "c246f0ad-6a48-4dc2-b8c2-a28f291c0eb7")
@@ -2146,7 +2146,7 @@
 		(at 157.96 77.04 180)
 		(descr "Capacitor SMD 0402 (1005 Metric), square (rectangular) end terminal, IPC-7351 nominal, (Body size source: IPC-SM-782 page 76, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf)")
 		(tags "capacitor")
-		(property "Reference" "100nF"
+		(property "Reference" "C2"
 			(at 0 -1 0)
 			(layer "F.SilkS")
 			(uuid "c951448f-1e18-45b3-a476-790258b9c106")
@@ -2292,7 +2292,7 @@
 		(at 151.45 79.54)
 		(descr "Resistor SMD 0402 (1005 Metric), square (rectangular) end terminal, IPC-7351 nominal, (Body size source: IPC-SM-782 page 72, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf)")
 		(tags "resistor")
-		(property "Reference" "15k"
+		(property "Reference" "R6"
 			(at -0.01 1 0)
 			(layer "F.SilkS")
 			(uuid "109c4fe5-255e-4fde-b385-cf17705206c1")
@@ -2438,7 +2438,7 @@
 		(at 144.96 77.04)
 		(descr "Resistor SMD 0402 (1005 Metric), square (rectangular) end terminal, IPC-7351 nominal, (Body size source: IPC-SM-782 page 72, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf)")
 		(tags "resistor")
-		(property "Reference" "10k"
+		(property "Reference" "R7"
 			(at 0 1 0)
 			(layer "F.SilkS")
 			(uuid "d9492052-1fa0-4382-81f3-ec5de99f65fd")
@@ -2584,7 +2584,7 @@
 		(at 157.96 75.04)
 		(descr "SMD rectangular pad as test Point, square 1.5mm side length")
 		(tags "test point SMD pad rectangle square")
-		(property "Reference" "5V3"
+		(property "Reference" "TP1"
 			(at 0 -1.6 0)
 			(layer "F.SilkS")
 			(uuid "229a2f1b-6dd5-431d-896d-5f1078438514")
@@ -2741,7 +2741,7 @@
 		(at 144 110.5 -90)
 		(descr "Resistor SMD 0402 (1005 Metric), square (rectangular) end terminal, IPC-7351 nominal, (Body size source: IPC-SM-782 page 72, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf)")
 		(tags "resistor")
-		(property "Reference" "1k"
+		(property "Reference" "R1"
 			(at 0 -1 90)
 			(layer "F.SilkS")
 			(uuid "6676612d-8d0d-44db-8c5b-621215afd52a")
