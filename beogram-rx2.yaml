@@ -252,7 +252,7 @@ script:
     then:
       - http_request.post:
           url: !lambda 'return "http://" + id(sonos_ip).state + ":1400/MediaRenderer/AVTransport/Control";'
-          headers:
+          request_headers:
             Content-Type: 'text/xml; charset="utf-8"'
             SOAPACTION: '"urn:schemas-upnp-org:service:AVTransport:1#Play"'
           body: |-
@@ -263,7 +263,7 @@ script:
     then:
       - http_request.post:
           url: !lambda 'return "http://" + id(sonos_ip).state + ":1400/MediaRenderer/AVTransport/Control";'
-          headers:
+          request_headers:
             Content-Type: 'text/xml; charset="utf-8"'
             SOAPACTION: '"urn:schemas-upnp-org:service:AVTransport:1#Pause"'
           body: |-
@@ -286,7 +286,7 @@ script:
           then:
             - http_request.post:
                 url: !lambda 'return "http://" + id(sonos_ip).state + ":1400/MediaRenderer/AVTransport/Control";'
-                headers:
+                request_headers:
                   Content-Type: 'text/xml; charset="utf-8"'
                   SOAPACTION: '"urn:schemas-upnp-org:service:AVTransport:1#SetAVTransportURI"'
                 body: !lambda |-
@@ -429,7 +429,7 @@ interval:
       # Get transport state (PLAYING / PAUSED_PLAYBACK / STOPPED / TRANSITIONING)
       - http_request.post:
           url: !lambda 'return "http://" + id(sonos_ip).state + ":1400/MediaRenderer/AVTransport/Control";'
-          headers:
+          request_headers:
             Content-Type: 'text/xml; charset="utf-8"'
             SOAPACTION: '"urn:schemas-upnp-org:service:AVTransport:1#GetTransportInfo"'
           body: |-
@@ -451,7 +451,7 @@ interval:
       # Get current URI so we know if we're on Line-In
       - http_request.post:
           url: !lambda 'return "http://" + id(sonos_ip).state + ":1400/MediaRenderer/AVTransport/Control";'
-          headers:
+          request_headers:
             Content-Type: 'text/xml; charset="utf-8"'
             SOAPACTION: '"urn:schemas-upnp-org:service:AVTransport:1#GetMediaInfo"'
           body: |-
