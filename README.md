@@ -34,7 +34,7 @@ The board splices in-line, so nothing about the turntable is modified permanentl
 
 ## Which turntables
 
-The last generation of radial-arm Beograms all share one control board, so the splice is the same across them:
+The Beogram 1800 family — the last generation of radial-arm Beograms — all share one control board, so the splice is the same across them:
 
 | Model | Years | Status |
 | ----- | ----- | ------ |
