@@ -17,7 +17,7 @@ A small ESP32-C6 board that intercepts the Beogram RX2 (and likely other) turnta
 - **Decoupling**: 10µF + 100nF on the 5.3V rail (tapped from the Beogram's main board)
 - **Connectors**: two 1×8 horizontal headers (one socket, one header) for in-line splice into the Beogram's existing button controller cable.
 
-PCB sources: `beogram-esp32.kicad_pcb`, `.kicad_sch`, `.kicad_pro`. Gerbers in [`gerbers/`](gerbers/). BOM in [`bom.csv`](bom.csv).
+PCB sources: `beogram-esp32.kicad_pcb`, `.kicad_sch`, `.kicad_pro`. BOM in [`bom.csv`](bom.csv).
 
 ### Pin map
 
@@ -26,7 +26,7 @@ PCB sources: `beogram-esp32.kicad_pcb`, `.kicad_sch`, `.kicad_pro`. Gerbers in [
 | D0       | GPIO0  | IN_OnOff_3V3      | COP410 pin 11 → ESP. LOW = arm in (turntable on) |
 | D1       | GPIO1  | IN_PlayPause_3V3  | COP410 pin 12 → ESP. HIGH = playing              |
 | D6       | GPIO16 | DRV_PlayPause    | ESP → U2 opto LED. Pulse 500 ms to "press" PLAYPAUSE |
-| D7       | GPIO17 | DRV_Cue           | ESP → U3 opto LED. Pulse 500 ms to "press" CUE   |
+| D8       | GPIO18 | DRV_Cue           | ESP → U3 opto LED. Pulse 500 ms to "press" CUE   |
 | 5V       | —      | VIN_5V3           | Power in from Beogram's 5.3V rail                |
 | GND      | —      | GND               | Common ground                                    |
 
@@ -70,6 +70,5 @@ beogram-esp32.kicad_sch     Schematic
 beogram-esp32.kicad_pcb     PCB layout
 beogram-rx2.yaml            ESPHome firmware config
 secrets.yaml.example        Template for WiFi/OTA/API creds
-gerbers/                    Manufacturing files (export from KiCad)
 bom.csv                     Bill of materials
 ```
