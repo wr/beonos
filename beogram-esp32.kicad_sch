@@ -2225,7 +2225,7 @@
       (effects
         (font
           (size 1.27 1.27))))
-    (property "Value" "On/Off"
+    (property "Value" "On-Off IN"
       (at 49.53 63.5 0)
       (effects
         (font
@@ -2261,7 +2261,7 @@
       (effects
         (font
           (size 1.27 1.27))))
-    (property "Value" "PlayPause"
+    (property "Value" "PlayPause IN"
       (at 49.53 109.22 0)
       (effects
         (font
@@ -2333,7 +2333,7 @@
       (effects
         (font
           (size 1.27 1.27))))
-    (property "Value" "GND"
+    (property "Value" "GND IN"
       (at 154.94 148.59 0)
       (effects
         (font

@@ -58,15 +58,20 @@ def main():
     board = pcbnew.LoadBoard(str(PCB))
     changed = []
 
-    # 1. Give every footprint a unique, valid reference designator.
+    # 1. Give every footprint a unique, valid reference designator. This is a
+    #    one-time migration -- once a reference exists there is nothing to do,
+    #    and the original positions are stale the moment anything is nudged in
+    #    the GUI. So only fall back to position matching if the name is absent.
     for target, new_ref in RENAMES.items():
+        if board.FindFootprintByReference(new_ref) is not None:
+            continue
         fp = find_by_position(board, target)
         if fp is None:
-            sys.exit(f"No footprint at {target} -- aborting without saving")
+            sys.exit(f"No footprint named {new_ref} and none at {target} "
+                     "-- aborting without saving")
         old = fp.GetReference()
-        if old != new_ref:
-            fp.SetReference(new_ref)
-            changed.append(f"ref  {old!r} -> {new_ref}")
+        fp.SetReference(new_ref)
+        changed.append(f"ref  {old!r} -> {new_ref}")
 
     # 2. Opto LED series resistors: 1k gave ~2.1mA, below the LTV-356T's 5mA
     #    CTR spec point. 470R gives ~4.5mA.
@@ -89,9 +94,31 @@ def main():
             changed.append(f"net  TP6.{pad.GetNumber()} {pad.GetNetname()!r} -> GND")
             pad.SetNet(gnd)
 
+    # 4. Keep the U2_DRV neck. This run threads between U2.2's pad and the
+    #    DRV_PlayPause traces; at 0.5mm it clears U2.2 by only 0.186mm against
+    #    a 0.2mm footprint rule. Routing in the GUI re-applies the default
+    #    width and silently re-opens that error, so re-assert it here.
+    NECKED = {
+        (at(148.960, 94.150), at(147.372, 94.150)),
+        (at(147.372, 94.150), at(145.372, 96.390)),
+    }
+    for track in board.GetTracks():
+        if track.Type() == pcbnew.PCB_VIA_T or track.GetNetname() != "U2_DRV":
+            continue
+        s, e = track.GetStart(), track.GetEnd()
+        for a, b_ in NECKED:
+            hit = ((abs(s.x - a[0]) <= TOLERANCE and abs(s.y - a[1]) <= TOLERANCE
+                    and abs(e.x - b_[0]) <= TOLERANCE and abs(e.y - b_[1]) <= TOLERANCE)
+                   or (abs(s.x - b_[0]) <= TOLERANCE and abs(s.y - b_[1]) <= TOLERANCE
+                       and abs(e.x - a[0]) <= TOLERANCE and abs(e.y - a[1]) <= TOLERANCE))
+            if hit and track.GetWidth() != round(0.3 * MM):
+                changed.append(
+                    f"neck U2_DRV {track.GetWidth()/MM:.2f} -> 0.30")
+                track.SetWidth(round(0.3 * MM))
+
     board.BuildListOfNets()
 
-    # 4. Refill the copper pours. The stored fill was computed while TP6 had no
+    # 5. Refill the copper pours. The stored fill was computed while TP6 had no
     #    net, so the zone cleared around it rather than connecting it.
     pcbnew.ZONE_FILLER(board).Fill(board.Zones())
     changed.append("zone refill")
