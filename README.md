@@ -15,8 +15,9 @@ A small ESP32-C6 board that intercepts the Beogram RX2 (and likely other) turnta
 - **Button drivers**: 2× LTV-356T optocouplers
 - **Level shifters**: 2× 1M/1.5M voltage dividers — drop the COP410's 5.3V logic to ~3.18V for the ESP's 3.3V GPIOs. The values are deliberately high so the divider barely loads the COP410's weak CMOS outputs, and so any overvoltage is current-limited into the ESP's ESD clamps.
 - **Decoupling**: 10µF + 100nF on the 5.3V rail (tapped from the Beogram's main board)
+- **Input filtering**: 10nF from each divider midpoint to ground, sitting right below R6/R8. The dividers present ~600kΩ to the ESP's inputs on wires that run past a motor, and the caps give a ~6ms time constant — well inside the firmware's 50 ms debounce.
 - **Connectors**: two 1×8 horizontal headers (one socket, one header) for in-line splice into the Beogram's existing button controller cable. Pins 1, 2, 4, 6, 7, 8 pass straight through; pins 3 and 5 (CUE and PLAYPAUSE) also land on the optocoupler emitters so the ESP can switch +12V onto them alongside the real buttons.
-- **Flying leads**: the 5.3V supply, ground, and the two COP410 sense signals are picked up on SMD test pads (`5V`, `GND`, `On/Off`, `PlayPause`), not the headers.
+- **Flying leads**: the 5.3V supply, ground, the +12V button rail, and the two COP410 sense signals are picked up on SMD test pads, not the headers. The pads are TP1–TP7 in the schematic, but the silkscreen is labelled by function — `5V`, `On/Off`, `PlayPause`, `12V`, `GND` — so solder by the printed label, not the designator.
 
 PCB sources: `beogram-esp32.kicad_pcb`, `.kicad_sch`, `.kicad_pro`. BOM in [`bom.csv`](bom.csv).
 
@@ -72,7 +73,23 @@ After it joins WiFi, the device shows up in Home Assistant. Set the **"Sonos IP"
 beogram-esp32.kicad_pro     KiCad project
 beogram-esp32.kicad_sch     Schematic
 beogram-esp32.kicad_pcb     PCB layout
+fp-lib-table                Registers New_XIAO_Series_Footprints
 beogram-rx2.yaml            ESPHome firmware config
 secrets.yaml.example        Template for WiFi/OTA/API creds
-bom.csv                     Bill of materials
+bom.csv                     Bill of materials — generated, do not hand-edit
+tools/                      Board scripts (see PCB-TODO.md)
+PCB-TODO.md                 Board change log and gotchas
+```
+
+`bom.csv` is generated from the PCB, so it can't drift from what gets built:
+
+```bash
+python3 tools/gen_bom.py
+```
+
+The other scripts in `tools/` need KiCad's bundled Python, which is the only one
+carrying the `pcbnew` module:
+
+```bash
+/Applications/KiCad/KiCad.app/Contents/Frameworks/Python.framework/Versions/Current/bin/python3 tools/<script>.py
 ```

@@ -138,7 +138,8 @@
 		(tags "test point SMD pad rectangle square")
 		(property "Reference" "TP3"
 			(at 0.047052 2.61474 0)
-			(layer "F.SilkS")
+			(layer "F.Fab")
+			(hide yes)
 			(uuid "89981e6f-c3bf-4012-8bb2-45d818332da2")
 			(effects
 				(font
@@ -149,13 +150,13 @@
 			)
 		)
 		(property "Value" "PlayPause"
-			(at 0 1.75 0)
-			(layer "F.Fab")
+			(at 0.047052 2.61474 0)
+			(layer "F.SilkS")
 			(uuid "50524ba2-2601-494a-9592-3f6e2aea423c")
 			(effects
 				(font
 					(size 1 1)
-					(thickness 0.15)
+					(thickness 0.2)
 				)
 			)
 		)
@@ -1385,7 +1386,8 @@
 		(tags "test point SMD pad rectangle square")
 		(property "Reference" "TP6"
 			(at -1.65 -1.831598 0)
-			(layer "F.SilkS")
+			(layer "F.Fab")
+			(hide yes)
 			(uuid "459a839b-13cf-4511-b28d-6985188f2188")
 			(effects
 				(font
@@ -1396,13 +1398,13 @@
 			)
 		)
 		(property "Value" "GND"
-			(at 0 1.75 0)
-			(layer "F.Fab")
+			(at -1.65 -1.831598 0)
+			(layer "F.SilkS")
 			(uuid "6c84f4d4-a4c4-4637-97c4-9bec04d41b5b")
 			(effects
 				(font
 					(size 1 1)
-					(thickness 0.15)
+					(thickness 0.2)
 				)
 			)
 		)
@@ -1503,7 +1505,8 @@
 		(tags "test point SMD pad rectangle square")
 		(property "Reference" "TP7"
 			(at 1.7 -1.95 0)
-			(layer "F.SilkS")
+			(layer "F.Fab")
+			(hide yes)
 			(uuid "b68eac16-167f-4e56-be52-be816b89caa9")
 			(effects
 				(font
@@ -1514,13 +1517,13 @@
 			)
 		)
 		(property "Value" "GND"
-			(at 0 1.75 0)
-			(layer "F.Fab")
+			(at 1.7 -1.95 0)
+			(layer "F.SilkS")
 			(uuid "616b108d-1aae-4a57-94b2-9a7ee7783415")
 			(effects
 				(font
 					(size 1 1)
-					(thickness 0.15)
+					(thickness 0.2)
 				)
 			)
 		)
@@ -1621,7 +1624,8 @@
 		(tags "test point SMD pad rectangle square")
 		(property "Reference" "TP2"
 			(at 0 2.61474 0)
-			(layer "F.SilkS")
+			(layer "F.Fab")
+			(hide yes)
 			(uuid "01e8188c-8aab-4df0-8e85-8a539dcd05fb")
 			(effects
 				(font
@@ -1631,14 +1635,14 @@
 				)
 			)
 		)
-		(property "Value" "IN_OnOff"
-			(at 0 1.75 0)
-			(layer "F.Fab")
+		(property "Value" "On/Off"
+			(at 0 2.61474 0)
+			(layer "F.SilkS")
 			(uuid "323676b8-9c90-4dea-925f-259c7a8ddfb3")
 			(effects
 				(font
 					(size 1 1)
-					(thickness 0.15)
+					(thickness 0.2)
 				)
 			)
 		)
@@ -1779,7 +1783,8 @@
 		(tags "test point SMD pad rectangle square")
 		(property "Reference" "TP4"
 			(at -2.05 2.05 0)
-			(layer "F.SilkS")
+			(layer "F.Fab")
+			(hide yes)
 			(uuid "2e51fefd-46f8-47a4-9ad4-e057a3b577ae")
 			(effects
 				(font
@@ -1789,14 +1794,14 @@
 				)
 			)
 		)
-		(property "Value" "VIN_12V"
-			(at 0 1.75 0)
-			(layer "F.Fab")
+		(property "Value" "12V"
+			(at -2.05 2.05 0)
+			(layer "F.SilkS")
 			(uuid "7777034a-3a1e-4d0f-b2be-28bb8c3ed85a")
 			(effects
 				(font
 					(size 1 1)
-					(thickness 0.15)
+					(thickness 0.2)
 				)
 			)
 		)
@@ -1897,7 +1902,8 @@
 		(tags "test point SMD pad rectangle square")
 		(property "Reference" "TP5"
 			(at -0.25 -2.32 0)
-			(layer "F.SilkS")
+			(layer "F.Fab")
+			(hide yes)
 			(uuid "b8473f0f-89c0-4c99-87c8-d7c292c410e3")
 			(effects
 				(font
@@ -1908,13 +1914,13 @@
 			)
 		)
 		(property "Value" "GND"
-			(at 0 1.75 0)
-			(layer "F.Fab")
+			(at -0.25 -2.32 0)
+			(layer "F.SilkS")
 			(uuid "48ab1b29-9a5c-4e72-a6b8-ee6e33fd859f")
 			(effects
 				(font
 					(size 1 1)
-					(thickness 0.15)
+					(thickness 0.2)
 				)
 			)
 		)
@@ -3202,7 +3208,8 @@
 		(tags "test point SMD pad rectangle square")
 		(property "Reference" "TP1"
 			(at 1.3 2.1 0)
-			(layer "F.SilkS")
+			(layer "F.Fab")
+			(hide yes)
 			(uuid "0f3a9749-03e2-407a-a837-8de6d9888979")
 			(effects
 				(font
@@ -3212,14 +3219,14 @@
 				)
 			)
 		)
-		(property "Value" "VCC"
-			(at 0 1.75 0)
-			(layer "F.Fab")
+		(property "Value" "5V"
+			(at 1.3 2.1 0)
+			(layer "F.SilkS")
 			(uuid "89f7ec2c-507a-4ff5-a16b-f7298541b4a9")
 			(effects
 				(font
 					(size 1 1)
-					(thickness 0.15)
+					(thickness 0.2)
 				)
 			)
 		)

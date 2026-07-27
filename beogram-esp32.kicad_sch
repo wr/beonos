@@ -1649,7 +1649,7 @@
       (effects
         (font
           (size 1.27 1.27))))
-    (property "Value" "XIAO_ESP32C6"
+    (property "Value" "SEEED STUDIO XIAO ESP32C6"
       (at 119.38 93.98 0)
       (effects
         (font
@@ -2045,7 +2045,7 @@
       (effects
         (font
           (size 1.27 1.27))))
-    (property "Value" "TO BOARD"
+    (property "Value" "PM254-1-08-W-8.5(C2897390)"
       (at 234.95 78.74 0)
       (effects
         (font
@@ -2081,7 +2081,7 @@
       (effects
         (font
           (size 1.27 1.27))))
-    (property "Value" "TO BUTTONS"
+    (property "Value" "2.54-1*40P right-angle(C2334)"
       (at 261.62 78.74 0)
       (effects
         (font
