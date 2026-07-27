@@ -1315,12 +1315,6 @@
         (size 1.5 1.5)))
     (uuid "fd61b7ab-f724-45c9-8965-5c929ccf23cd"))
 
-  (text "J1/J2 = in-line splice; pins 1,2,4,6,7,8 pass through"
-    (at 245 100 0)
-    (effects
-      (font
-        (size 1.5 1.5)))
-    (uuid "cc059397-07a0-4668-897c-eb343d562ddf"))
 
   (text "U2/U3 switch +12V onto pin 5 (PLAYPAUSE) and pin 3 (CUE)"
     (at 245 103 0)
@@ -2469,4 +2463,9 @@
     (at 205 160 0)
     (effects (font (size 1.5 1.5)))
     (uuid "bd09a50a-3807-40ae-bf18-78288103c46c")
+  )
+  (text "J1 = TO BOARD, J2 = TO KEYBOARD (silkscreen). In-line splice; pins 1,2,4,6,7,8 pass through"
+    (at 245 100 0)
+    (effects (font (size 1.5 1.5)))
+    (uuid "d06d9c2f-d756-4ee2-89f5-96049924a698")
   ))
