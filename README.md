@@ -14,10 +14,11 @@ A small ESP32-C6 board that intercepts the Beogram RX2 (and likely other) turnta
 - **MCU**: Seeed Studio XIAO ESP32-C6 (castellated edge-mount module)
 - **Button drivers**: 2× LTV-356T optocouplers
 - **Level shifters**: 2× 1M/1.5M voltage dividers — drop the COP410's 5.3V logic to ~3.18V for the ESP's 3.3V GPIOs. The values are deliberately high so the divider barely loads the COP410's weak CMOS outputs, and so any overvoltage is current-limited into the ESP's ESD clamps.
-- **Decoupling**: 10µF + 100nF on the 5.3V rail (tapped from the Beogram's main board)
+- **Power**: an off-board MP1584EN buck module (PS1) steps the Beogram's +12V button rail down to 5V for the XIAO, so the board draws everything it needs from the button cable and doesn't tap the 5.3V supply. The module hangs on flying leads; the board carries four wire pads for it, labelled `12V`/`GND` in and `5V`/`GND` out.
+- **Decoupling**: 10µF + 100nF on the buck's 5V output
 - **Input filtering**: 10nF from each divider midpoint to ground, sitting right below R6/R8. The dividers present ~600kΩ to the ESP's inputs on wires that run past a motor, and the caps give a ~6ms time constant — well inside the firmware's 50 ms debounce.
 - **Connectors**: two 1×8 horizontal headers (one socket, one header) for in-line splice into the Beogram's existing button controller cable. Pins 1, 2, 4, 6, 7, 8 pass straight through; pins 3 and 5 (CUE and PLAYPAUSE) also land on the optocoupler emitters so the ESP can switch +12V onto them alongside the real buttons.
-- **Flying leads**: the 5.3V supply, ground, the +12V button rail, and the two COP410 sense signals are picked up on SMD test pads, not the headers. The pads are TP1–TP7 in the schematic, but the silkscreen is labelled by function — `5V`, `On/Off`, `PlayPause`, `12V`, `GND` — so solder by the printed label, not the designator.
+- **Flying leads**: the two COP410 sense signals and a ground reference come in on SMD test pads (TP2, TP3, TP5), and the four buck pads (PS1) go out to the module. Silkscreen is labelled by function — `On-Off IN`, `PlayPause IN`, `GND IN`, `12V`, `5V`, `GND` — so solder by the printed label, not the designator.
 
 PCB sources: `beogram-esp32.kicad_pcb`, `.kicad_sch`, `.kicad_pro`. BOM in [`bom.csv`](bom.csv).
 
@@ -29,7 +30,7 @@ PCB sources: `beogram-esp32.kicad_pcb`, `.kicad_sch`, `.kicad_pro`. BOM in [`bom
 | D3       | 4   | GPIO21 | IN_PlayPause_3V3  | COP410 pin 12 → ESP. HIGH = playing              |
 | D8       | 9   | GPIO19 | DRV_PlayPause     | ESP → U2 opto LED. Pulse 500 ms to "press" PLAYPAUSE |
 | D10      | 11  | GPIO18 | DRV_Cue           | ESP → U3 opto LED. Pulse 500 ms to "press" CUE   |
-| 5V       | 14  | —      | VCC (5.3V in)     | Power in from Beogram's 5.3V rail                |
+| 5V       | 14  | —      | VCC               | 5V in from the MP1584 buck (PS1)                 |
 | GND      | 13  | —      | GND               | Common ground                                    |
 
 D6/D7 (GPIO16/17) are UART0 and are deliberately left unconnected, so the ROM

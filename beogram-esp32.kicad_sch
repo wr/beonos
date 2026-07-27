@@ -1104,6 +1104,155 @@
             (effects
               (font
                 (size 1.27 1.27))))))
+      (embedded_fonts no))
+    (symbol "Connector_Generic:Conn_01x04"
+      (pin_names
+        (offset 1.016)
+        (hide yes))
+      (exclude_from_sim no)
+      (in_bom yes)
+      (on_board yes)
+      (in_pos_files yes)
+      (duplicate_pin_numbers_are_jumpers no)
+      (property "Reference" "J"
+        (at 0 5.08 0)
+        (show_name no)
+        (do_not_autoplace no)
+        (effects
+          (font
+            (size 1.27 1.27))))
+      (property "Value" "Conn_01x04"
+        (at 0 -7.62 0)
+        (show_name no)
+        (do_not_autoplace no)
+        (effects
+          (font
+            (size 1.27 1.27))))
+      (property "Footprint" ""
+        (at 0 0 0)
+        (show_name no)
+        (do_not_autoplace no)
+        (hide yes)
+        (effects
+          (font
+            (size 1.27 1.27))))
+      (property "Datasheet" ""
+        (at 0 0 0)
+        (show_name no)
+        (do_not_autoplace no)
+        (hide yes)
+        (effects
+          (font
+            (size 1.27 1.27))))
+      (property "Description" "Generic connector, single row, 01x04, script generated (kicad-library-utils/schlib/autogen/connector/)"
+        (at 0 0 0)
+        (show_name no)
+        (do_not_autoplace no)
+        (hide yes)
+        (effects
+          (font
+            (size 1.27 1.27))))
+      (property "ki_keywords" "connector"
+        (at 0 0 0)
+        (show_name no)
+        (do_not_autoplace no)
+        (hide yes)
+        (effects
+          (font
+            (size 1.27 1.27))))
+      (property "ki_fp_filters" "Connector*:*_1x??_*"
+        (at 0 0 0)
+        (show_name no)
+        (do_not_autoplace no)
+        (hide yes)
+        (effects
+          (font
+            (size 1.27 1.27))))
+      (symbol "Conn_01x04_1_1"
+        (rectangle
+          (start -1.27 3.81)
+          (end 1.27 -6.35)
+          (stroke
+            (width 0.254)
+            (type default))
+          (fill
+            (type background)))
+        (rectangle
+          (start -1.27 2.667)
+          (end 0 2.413)
+          (stroke
+            (width 0.1524)
+            (type default))
+          (fill
+            (type none)))
+        (rectangle
+          (start -1.27 0.127)
+          (end 0 -0.127)
+          (stroke
+            (width 0.1524)
+            (type default))
+          (fill
+            (type none)))
+        (rectangle
+          (start -1.27 -2.413)
+          (end 0 -2.667)
+          (stroke
+            (width 0.1524)
+            (type default))
+          (fill
+            (type none)))
+        (rectangle
+          (start -1.27 -4.953)
+          (end 0 -5.207)
+          (stroke
+            (width 0.1524)
+            (type default))
+          (fill
+            (type none)))
+        (pin passive line
+          (at -5.08 2.54 0)
+          (length 3.81)
+          (name "Pin_1"
+            (effects
+              (font
+                (size 1.27 1.27))))
+          (number "1"
+            (effects
+              (font
+                (size 1.27 1.27)))))
+        (pin passive line
+          (at -5.08 0 0)
+          (length 3.81)
+          (name "Pin_2"
+            (effects
+              (font
+                (size 1.27 1.27))))
+          (number "2"
+            (effects
+              (font
+                (size 1.27 1.27)))))
+        (pin passive line
+          (at -5.08 -2.54 0)
+          (length 3.81)
+          (name "Pin_3"
+            (effects
+              (font
+                (size 1.27 1.27))))
+          (number "3"
+            (effects
+              (font
+                (size 1.27 1.27)))))
+        (pin passive line
+          (at -5.08 -5.08 0)
+          (length 3.81)
+          (name "Pin_4"
+            (effects
+              (font
+                (size 1.27 1.27))))
+          (number "4"
+            (effects
+              (font
+                (size 1.27 1.27))))))
       (embedded_fonts no)))
 
   (no_connect
@@ -1372,21 +1521,7 @@
       (justify left bottom))
     (uuid "f63512a8-6e2c-4d13-8f89-5b258a3dbc09"))
 
-  (label "GND"
-    (at 170.18 144.78 0)
-    (effects
-      (font
-        (size 1.27 1.27))
-      (justify left bottom))
-    (uuid "d346c20f-fbdc-4a99-b99c-c18ae9bad719"))
 
-  (label "GND"
-    (at 185.42 144.78 0)
-    (effects
-      (font
-        (size 1.27 1.27))
-      (justify left bottom))
-    (uuid "2fb9e4d9-d68e-4191-b911-f148453531b0"))
 
   (label "VCC"
     (at 114.3 107.95 0)
@@ -1412,13 +1547,6 @@
       (justify left bottom))
     (uuid "083dd889-3eab-461d-8ca5-063b4a76e957"))
 
-  (label "VCC"
-    (at 100.33 144.78 0)
-    (effects
-      (font
-        (size 1.27 1.27))
-      (justify left bottom))
-    (uuid "2d5f7ebd-cfe8-479e-a8cf-7f219ad61b95"))
 
   (label "DRV_PlayPause"
     (at 114.3 95.25 0)
@@ -1516,13 +1644,6 @@
       (justify left bottom))
     (uuid "4727518c-ef7e-4c3a-8ed8-f2532f9d1d07"))
 
-  (label "VBTN_12V"
-    (at 214.63 44.45 0)
-    (effects
-      (font
-        (size 1.27 1.27))
-      (justify left bottom))
-    (uuid "28f061df-af00-411d-91c5-8138658fe9a2"))
 
   (label "BTN_PlayPause"
     (at 193.04 67.31 0)
@@ -2178,42 +2299,6 @@
 
   (symbol
     (lib_id "Connector:TestPoint")
-    (at 100.33 144.78 0)
-    (unit 1)
-    (in_bom yes)
-    (on_board yes)
-    (dnp no)
-    (uuid "26c03408-7fd4-40fb-9fa7-3589dc07b9ab")
-    (property "Reference" "TP1"
-      (at 100.33 140.97 0)
-      (effects
-        (font
-          (size 1.27 1.27))))
-    (property "Value" "5V"
-      (at 100.33 148.59 0)
-      (effects
-        (font
-          (size 1.27 1.27))))
-    (property "Footprint" "TestPoint:TestPoint_Pad_1.5x1.5mm"
-      (at 100.33 144.78 0)
-      (effects
-        (font
-          (size 1.27 1.27))
-        (hide yes)))
-    (property "Datasheet" ""
-      (at 100.33 144.78 0)
-      (effects
-        (font
-          (size 1.27 1.27))
-        (hide yes)))
-    (instances
-      (project "beogram-esp32"
-        (path "/6a4e51d5-1ca7-4246-9445-88d9ccced5cd"
-          (reference "TP1")
-          (unit 1)))))
-
-  (symbol
-    (lib_id "Connector:TestPoint")
     (at 49.53 59.69 0)
     (unit 1)
     (in_bom yes)
@@ -2286,42 +2371,6 @@
 
   (symbol
     (lib_id "Connector:TestPoint")
-    (at 214.63 44.45 0)
-    (unit 1)
-    (in_bom yes)
-    (on_board yes)
-    (dnp no)
-    (uuid "04cdbe4a-0b53-4bca-b85f-98aaa14571d5")
-    (property "Reference" "TP4"
-      (at 214.63 40.64 0)
-      (effects
-        (font
-          (size 1.27 1.27))))
-    (property "Value" "12V"
-      (at 214.63 48.26 0)
-      (effects
-        (font
-          (size 1.27 1.27))))
-    (property "Footprint" "TestPoint:TestPoint_Pad_1.5x1.5mm"
-      (at 214.63 44.45 0)
-      (effects
-        (font
-          (size 1.27 1.27))
-        (hide yes)))
-    (property "Datasheet" ""
-      (at 214.63 44.45 0)
-      (effects
-        (font
-          (size 1.27 1.27))
-        (hide yes)))
-    (instances
-      (project "beogram-esp32"
-        (path "/6a4e51d5-1ca7-4246-9445-88d9ccced5cd"
-          (reference "TP4")
-          (unit 1)))))
-
-  (symbol
-    (lib_id "Connector:TestPoint")
     (at 154.94 144.78 0)
     (unit 1)
     (in_bom yes)
@@ -2357,31 +2406,31 @@
           (unit 1)))))
 
   (symbol
-    (lib_id "Connector:TestPoint")
-    (at 170.18 144.78 0)
+    (lib_id "Connector_Generic:Conn_01x04")
+    (at 204.47 148.59 0)
     (unit 1)
     (in_bom yes)
     (on_board yes)
     (dnp no)
-    (uuid "a959d2b5-4e8e-42b9-a140-abc573f622b5")
-    (property "Reference" "TP6"
-      (at 170.18 140.97 0)
+    (uuid "7442d9b7-5f92-4a59-893f-df12625ea2ea")
+    (property "Reference" "PS1"
+      (at 204.47 144.78 0)
       (effects
         (font
           (size 1.27 1.27))))
-    (property "Value" "GND"
-      (at 170.18 148.59 0)
+    (property "Value" "MP1584EN module"
+      (at 204.47 152.4 0)
       (effects
         (font
           (size 1.27 1.27))))
-    (property "Footprint" "TestPoint:TestPoint_Pad_1.5x1.5mm"
-      (at 170.18 144.78 0)
+    (property "Footprint" "beogram:MP1584_Module_Wired"
+      (at 204.47 148.59 0)
       (effects
         (font
           (size 1.27 1.27))
         (hide yes)))
     (property "Datasheet" ""
-      (at 170.18 144.78 0)
+      (at 204.47 148.59 0)
       (effects
         (font
           (size 1.27 1.27))
@@ -2389,42 +2438,35 @@
     (instances
       (project "beogram-esp32"
         (path "/6a4e51d5-1ca7-4246-9445-88d9ccced5cd"
-          (reference "TP6")
+          (reference "PS1")
           (unit 1)))))
 
-  (symbol
-    (lib_id "Connector:TestPoint")
-    (at 185.42 144.78 0)
-    (unit 1)
-    (in_bom yes)
-    (on_board yes)
-    (dnp no)
-    (uuid "03d6f3e2-df5e-42b3-9915-01263e721e6d")
-    (property "Reference" "TP7"
-      (at 185.42 140.97 0)
-      (effects
-        (font
-          (size 1.27 1.27))))
-    (property "Value" "GND"
-      (at 185.42 148.59 0)
-      (effects
-        (font
-          (size 1.27 1.27))))
-    (property "Footprint" "TestPoint:TestPoint_Pad_1.5x1.5mm"
-      (at 185.42 144.78 0)
-      (effects
-        (font
-          (size 1.27 1.27))
-        (hide yes)))
-    (property "Datasheet" ""
-      (at 185.42 144.78 0)
-      (effects
-        (font
-          (size 1.27 1.27))
-        (hide yes)))
-    (instances
-      (project "beogram-esp32"
-        (path "/6a4e51d5-1ca7-4246-9445-88d9ccced5cd"
-          (reference "TP7")
-          (unit 1)))))
-)
+  (label "VBTN_12V"
+    (at 199.39 146.05 0)
+    (fields_autoplaced yes)
+    (effects (font (size 1.27 1.27)) (justify left bottom))
+    (uuid "6397d90a-9700-4dfd-93f1-619852d1b68f")
+  )
+  (label "GND"
+    (at 199.39 148.59 0)
+    (fields_autoplaced yes)
+    (effects (font (size 1.27 1.27)) (justify left bottom))
+    (uuid "15d032a1-f089-4614-96c9-bd20e558f6af")
+  )
+  (label "GND"
+    (at 199.39 153.67000000000002 0)
+    (fields_autoplaced yes)
+    (effects (font (size 1.27 1.27)) (justify left bottom))
+    (uuid "c8a07936-b62d-4e52-8166-55ff303480fc")
+  )
+  (label "VCC"
+    (at 199.39 151.13 0)
+    (fields_autoplaced yes)
+    (effects (font (size 1.27 1.27)) (justify left bottom))
+    (uuid "4f6a4ebd-6817-4465-89e7-62d2a6d24ca0")
+  )
+  (text "PS1 = off-board MP1584EN buck module. Pads only; module hangs on flying leads. 1=IN+ 2=IN- 3=OUT+ 4=OUT-"
+    (at 205 160 0)
+    (effects (font (size 1.5 1.5)))
+    (uuid "bd09a50a-3807-40ae-bf18-78288103c46c")
+  ))

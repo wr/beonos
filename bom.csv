@@ -9,3 +9,4 @@ U1,SEEED STUDIO XIAO ESP32C6,New_XIAO_Series_Footprints:XIAO-ESP32-C6-SMD,1
 "R6,R8",1.5M,Resistor_SMD:R_0402_1005Metric,2
 "R5,R7",1M,Resistor_SMD:R_0402_1005Metric,2
 "R1,R2",470R,Resistor_SMD:R_0402_1005Metric,2
+PS1,MP1584EN module,beogram:MP1584_Module_Wired,1

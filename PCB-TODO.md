@@ -35,6 +35,26 @@ C3/C4 sit at the divider midpoints rather than at the ESP32 pins, because the
 noise they reject is picked up on the wires from the turntable — filtering
 where those land catches it before it travels.
 
+## MP1584 buck module (PS1)
+
+The four hand-made 3.0 x 2.0mm pads under the "->MP1584->" note are now a real
+component: `PS1`, on `beogram:MP1584_Module_Wired`, built by
+`tools/add_buck_module.py`. Pad coordinates are unchanged, so nothing moved.
+
+The module is off-board on flying leads, so the footprint is excluded from
+position files and its courtyard hugs each pad rather than boxing the whole
+area -- `create_footprint` drew a 20.5 x 11mm body courtyard, which C1 already
+sits inside. `tools/fix_buck_footprint.py` corrects that and is re-runnable.
+
+In the schematic PS1 uses `Connector_Generic:Conn_01x04`, the same placeholder
+convention as U1. A proper named-pin symbol exists in `beogram.kicad_sym`
+(IN+/IN-/OUT+/OUT-) if you want to swap it in Eeschema -- Konnect can only
+place from stock libraries, so it could not be used directly.
+
+This changed the power topology: VCC now comes from the buck, fed off
+VBTN_12V, instead of the Beogram's 5.3V rail. The old TP1/TP4/TP6/TP7 test
+points are gone, replaced by PS1's four pads.
+
 ## Not done
 
 Nothing outstanding. Re-run `python3 tools/gen_bom.py` after any board change.
