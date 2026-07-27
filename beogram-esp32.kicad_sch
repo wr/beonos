@@ -1138,6 +1138,48 @@
     (at 114.3 102.87)
     (uuid "c6b16e3c-e859-49c9-84a7-0af46dc22cb2"))
 
+  (text "U1 = Seeed XIAO ESP32-C6; Conn_01x14 is a placeholder, pad numbers = module pads"
+    (at 75 134 0)
+    (effects
+      (font
+        (size 1.5 1.5)))
+    (uuid "f4f90946-87a2-4cf1-9e24-b8817369355f"))
+
+  (text "pad 1=D0/GPIO0   4=D3/GPIO21   9=D8/GPIO19   11=D10/GPIO18   13=GND   14=5V"
+    (at 75 137 0)
+    (effects
+      (font
+        (size 1.5 1.5)))
+    (uuid "7fd6895e-4c89-423c-8e0d-5e301ac98e84"))
+
+  (text "pads 7,8 (D6/D7) = UART0, left unconnected on purpose"
+    (at 62 140 0)
+    (effects
+      (font
+        (size 1.5 1.5)))
+    (uuid "e9761132-e632-4c0a-bd07-970e036640a1"))
+
+  (text "R5/R6 and R7/R8 divide COP410 5.3V logic to ~3.18V; C3/C4 filter the 600k source Z"
+    (at 76 160 0)
+    (effects
+      (font
+        (size 1.5 1.5)))
+    (uuid "fd61b7ab-f724-45c9-8965-5c929ccf23cd"))
+
+  (text "J1/J2 = in-line splice; pins 1,2,4,6,7,8 pass through"
+    (at 245 100 0)
+    (effects
+      (font
+        (size 1.5 1.5)))
+    (uuid "cc059397-07a0-4668-897c-eb343d562ddf"))
+
+  (text "U2/U3 switch +12V onto pin 5 (PLAYPAUSE) and pin 3 (CUE)"
+    (at 245 103 0)
+    (effects
+      (font
+        (size 1.5 1.5)))
+    (uuid "4b8b95fc-4f05-4b93-836d-5cf0aa151a37"))
+
   (label "COP_OnOff"
     (at 49.53 59.69 0)
     (effects
@@ -1704,7 +1746,7 @@
 
   (symbol
     (lib_id "Device:C")
-    (at 100.33 69.85 0)
+    (at 100.33 69.85 180)
     (unit 1)
     (in_bom yes)
     (on_board yes)
@@ -2385,34 +2427,4 @@
         (path "/6a4e51d5-1ca7-4246-9445-88d9ccced5cd"
           (reference "TP7")
           (unit 1)))))
-
-  (text "U1 = Seeed XIAO ESP32-C6; Conn_01x14 is a placeholder, pad numbers = module pads"
-    (at 75 134 0)
-    (effects (font (size 1.5 1.5)))
-    (uuid "f4f90946-87a2-4cf1-9e24-b8817369355f")
-  )
-  (text "pad 1=D0/GPIO0   4=D3/GPIO21   9=D8/GPIO19   11=D10/GPIO18   13=GND   14=5V"
-    (at 75 137 0)
-    (effects (font (size 1.5 1.5)))
-    (uuid "7fd6895e-4c89-423c-8e0d-5e301ac98e84")
-  )
-  (text "pads 7,8 (D6/D7) = UART0, left unconnected on purpose"
-    (at 62 140 0)
-    (effects (font (size 1.5 1.5)))
-    (uuid "e9761132-e632-4c0a-bd07-970e036640a1")
-  )
-  (text "R5/R6 and R7/R8 divide COP410 5.3V logic to ~3.18V; C3/C4 filter the 600k source Z"
-    (at 76 160 0)
-    (effects (font (size 1.5 1.5)))
-    (uuid "fd61b7ab-f724-45c9-8965-5c929ccf23cd")
-  )
-  (text "J1/J2 = in-line splice; pins 1,2,4,6,7,8 pass through"
-    (at 245 100 0)
-    (effects (font (size 1.5 1.5)))
-    (uuid "cc059397-07a0-4668-897c-eb343d562ddf")
-  )
-  (text "U2/U3 switch +12V onto pin 5 (PLAYPAUSE) and pin 3 (CUE)"
-    (at 245 103 0)
-    (effects (font (size 1.5 1.5)))
-    (uuid "4b8b95fc-4f05-4b93-836d-5cf0aa151a37")
-  ))
+)
