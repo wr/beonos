@@ -35,7 +35,7 @@ def main():
         if old is None:
             sys.exit(f"{ref} not found -- aborting without saving")
 
-        if old.GetFPID().GetLibItemName() == NEW_FP:
+        if str(old.GetFPID().GetLibItemName()) == NEW_FP:
             print(f"{ref} already on {NEW_FP}")
             continue
 
@@ -49,6 +49,9 @@ def main():
         if new is None:
             sys.exit(f"Could not load {NEW_FP} from {LIB}")
 
+        # FootprintLoad leaves the FPID without a library nickname; set the
+        # full Library:Footprint id so the board records where it came from.
+        new.SetFPID(pcbnew.LIB_ID("Package_SO", NEW_FP))
         new.SetReference(ref)
         new.SetValue(value)
         if layer != new.GetLayer():
