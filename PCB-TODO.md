@@ -3,6 +3,23 @@
 The schematic is now correct and ERC-clean. The PCB has not been touched yet.
 These are the changes still owed to the board.
 
+## Why this is a manual list
+
+Konnect can read the board but cannot make any of these edits. `edit_component`
+returns "Field edits via IPC are not yet supported", and the PCB toolset has no
+reference-designator rename, no footprint swap, and no pad-to-net assignment.
+Every change below has to come through the schematic sync or the GUI.
+
+For Konnect's PCB tools to talk to the board at all, a KiCad **editor** must own
+`/tmp/kicad/api.sock`. The project manager claims that socket while holding no
+documents, which makes every PCB call fail with `AS_UNHANDLED`. Quit the manager
+and launch the editor directly:
+
+```
+osascript -e 'tell application "KiCad" to quit'
+open -a "/Applications/KiCad/PCB Editor.app" beogram-esp32.kicad_pcb
+```
+
 ## Read this first
 
 **Do not run Tools > Update PCB from Schematic (F8) with default options.**
