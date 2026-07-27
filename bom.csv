@@ -1,10 +1,10 @@
 references,value,footprint,quantity
 C2,100nF,Capacitor_SMD:C_0402_1005Metric,1
 C1,10uF,Capacitor_SMD:C_0402_1005Metric,1
-TO BUTTONS,2.54-1*40P right-angle(C2334),Connector_PinHeader_2.54mm:PinHeader_1x08_P2.54mm_Horizontal,1
-TO BOARD,PM254-1-08-W-8.5(C2897390),Connector_PinSocket_2.54mm:PinSocket_1x08_P2.54mm_Horizontal,1
+J2,2.54-1*40P right-angle(C2334),Connector_PinHeader_2.54mm:PinHeader_1x08_P2.54mm_Horizontal,1
+J1,PM254-1-08-W-8.5(C2897390),Connector_PinSocket_2.54mm:PinSocket_1x08_P2.54mm_Horizontal,1
 U1,SEEED STUDIO XIAO ESP32C6,New_XIAO_Series_Footprints:XIAO-ESP32-C6-SMD,1
 "U2,U3",LTV-356T,Package_SO:SO-4_4.4x4.3mm_P2.54mm,2
 "R6,R8",1.5M,Resistor_SMD:R_0402_1005Metric,2
 "R5,R7",1M,Resistor_SMD:R_0402_1005Metric,2
-"R1,R2",1k,Resistor_SMD:R_0402_1005Metric,2
+"R1,R2",470R,Resistor_SMD:R_0402_1005Metric,2
