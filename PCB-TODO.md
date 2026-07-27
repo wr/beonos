@@ -1,7 +1,61 @@
 # Remaining PCB work
 
-The schematic is now correct and ERC-clean. The PCB has not been touched yet.
-These are the changes still owed to the board.
+## Done
+
+Applied by `tools/fix_pcb.py`, using KiCad's `pcbnew` Python object model:
+
+- All 20 footprints have unique, ASCII reference designators (TP1-TP7, J1, J2).
+  Three were previously all called `GND`, and four used a `↘︎` glyph.
+- R1, R2: 1k → 470R
+- TP6's pad had no net; tied to GND and zones refilled
+
+DRC is at 0 violations, 0 unconnected.
+
+## Still open
+
+Two items need interactive layout work. Both are blocked on the same thing:
+this is a dense 25 x 64mm two-layer board with eight nets running its full
+length between the connectors.
+
+### Opto footprint swap — attempted, reverted
+
+`tools/swap_opto_footprint.py` does the swap correctly: it carries position,
+rotation, layer, and all four pad nets across, and leaves 0 unconnected. But
+the resulting board has 8 DRC errors including a real short, so it is not
+committed.
+
+The cause is geometric. U2/U3 sit at -90°, so the new land's 2.0mm pad length
+runs *vertically* on the board, straight into the vertical trace corridors.
+Pads 1 and 2 are 2.54mm apart, so the gap between their edges drops to 0.54mm
+— a 0.5mm trace cannot reach pad 1 through that gap at 0.2mm clearance. The
+`U2_DRV`/`U3_DRV` traces would have to approach pad 1 from outside the
+footprint, which means shifting several of the long parallel traces.
+
+Worth knowing: the current `SO-4_4.4x4.3mm` land has the *correct pad centres*
+(2.54mm pitch), so the leads do land on copper. What is lost is land area and
+the toe fillet, which matters for reflow yield and inspection, not for whether
+the part works. On a hand-built one-off it is a reasonable thing to live with.
+
+Options, in increasing order of effort:
+
+1. Leave it. Solderable, just a small land.
+2. Rotate U2/U3 by 90° so the long pads run horizontally, then re-route.
+3. Re-route the DRV traces around the outside of each opto.
+
+### Filter caps C3/C4
+
+Not placed. 10nF 0402, one per divider midpoint:
+
+- C3: `IN_OnOff_3V3` (U1 pad 1) to GND
+- C4: `IN_PlayPause_3V3` (U1 pad 4) to GND
+
+They tame the 600kΩ Thevenin impedance feeding the GPIOs on wires that run past
+a motor. 10nF gives a ~6ms time constant, well inside the firmware's 50ms
+`delayed_on`/`delayed_off` filters. They are already in the schematic, so a
+schematic sync will pull them in as unplaced footprints — see below.
+
+Finding space and routing them wants a human eye on the board; the congestion
+that defeated the footprint swap applies here too.
 
 ## Why this is a manual list
 
