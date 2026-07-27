@@ -6,7 +6,7 @@
 #                                    We invert so the sensor reads true when the turntable is on.
 #   GPIO21 (D3)  — IN_PlayPause_3V3  input from COP410 pin 12 via 1M/1.5M divider
 #                                    COP410: HIGH = playing, LOW = paused/cued
-#   GPIO17 (D7)  — DRV_PlayPause     drives U2 optocoupler LED; pulse HIGH 500ms
+#   GPIO19 (D8)  — DRV_PlayPause     drives U2 optocoupler LED; pulse HIGH 500ms
 #                                    to switch +12V onto the PLAYPAUSE button line
 #   GPIO18 (D10) — DRV_Cue           drives U3 optocoupler LED; pulse HIGH 500ms
 #                                    to switch +12V onto the CUE button line
