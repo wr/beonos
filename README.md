@@ -1,40 +1,61 @@
-<img width="492" height="184" alt="beonos" src="https://github.com/user-attachments/assets/0bac70b3-670b-4b0c-a56c-cbdf7ba0482e" />
+<h1 align="center">beonos</h1>
 
-# beonos: Sonos integration for vintage Bang & Olufsen turntables
+<p align="center">
+  <strong>Put a record on, and Sonos plays it. Two-way control between a vintage Bang &amp; Olufsen turntable and your speakers.</strong>
+</p>
 
-A small ESP32-C6 board that intercepts the Beogram RX2 (and likely other) turntable's button controls, senses play/pause status, and connects them to a Sonos speaker over UPnP.
+<p align="center">
+  <a href="#what-is-it">What is it?</a> ⬪
+  <a href="#hardware">Hardware</a> ⬪
+  <a href="#firmware-esphome">Firmware</a> ⬪
+  <a href="#repo-layout">Repo layout</a> ⬪
+  <a href="#license">License</a>
+</p>
 
-## What it does
+<p align="center">
+  <img width="492" alt="beonos" src="https://github.com/user-attachments/assets/0bac70b3-670b-4b0c-a56c-cbdf7ba0482e" />
+</p>
 
-- **Turntable → Sonos**: when you start the turntable, the speaker switches to Line-In and starts playing. When you pause or turn off the turntable, the speaker pauses.
-- **Sonos → turntable**: selecting Line-In on the Sonos starts the turntable (presses Cue). Switching away or pausing on the speaker stops the turntable. If you start Sonos Line-In and there's no record on the platter, the firmware notices and pauses Sonos.
+<p align="center">
+  <sub>Drop the needle and the speaker switches to Line-In on its own.</sub>
+</p>
+
+---
+
+## What is it?
+
+A small ESP32-C6 board that splices into a Beogram RX2's button cable, reads what the turntable is doing, and presses its buttons back. The result is a turntable that behaves like any other Sonos source.
+
+- **Turntable → Sonos**: start the turntable and the speaker switches to Line-In and plays. Pause or switch off, and the speaker pauses.
+- **Sonos → turntable**: pick Line-In on the speaker and the turntable starts (it presses Cue). Switch away or pause, and the turntable stops. If there's no record on the platter, the firmware notices and pauses Sonos rather than leaving it playing silence.
+
+The board splices in-line, so nothing about the turntable is modified permanently — unplug the two headers and it's stock again.
 
 ## Hardware
 
 - **MCU**: Seeed Studio XIAO ESP32-C6 (castellated edge-mount module)
-- **Button drivers**: 2× LTV-356T optocouplers
-- **Level shifters**: 2× 1M/1.5M voltage dividers — drop the COP410's 5.3V logic to ~3.18V for the ESP's 3.3V GPIOs. The values are deliberately high so the divider barely loads the COP410's weak CMOS outputs, and so any overvoltage is current-limited into the ESP's ESD clamps.
-- **Power**: an off-board MP1584EN buck module (PS1) steps the Beogram's +12V button rail down to 5V for the XIAO, so the board draws everything it needs from the button cable and doesn't tap the 5.3V supply. The module hangs on flying leads; the board carries four wire pads for it, labelled `12V`/`GND` in and `5V`/`GND` out.
+- **Button drivers**: 2× LTV-356T optocouplers, switching the turntable's +12V onto the CUE and PLAYPAUSE lines exactly as the real buttons do
+- **Level shifters**: 2× 1M/1.5M dividers dropping the COP410's 5.3V logic to ~3.18V for the ESP's 3.3V inputs. The values are deliberately high so the divider barely loads the COP410's weak CMOS outputs, and any overvoltage is current-limited into the ESP's ESD clamps.
+- **Power**: an off-board MP1584EN buck module (PS1) steps the +12V button rail down to 5V, so the board draws everything from the button cable and never taps the 5.3V supply. The module hangs on flying leads; the board carries four wire pads for it.
 - **Decoupling**: 10µF + 100nF on the buck's 5V output
-- **Input filtering**: 10nF from each divider midpoint to ground, sitting right below R6/R8. The dividers present ~600kΩ to the ESP's inputs on wires that run past a motor, and the caps give a ~6ms time constant — well inside the firmware's 50 ms debounce.
-- **Connectors**: two 1×8 horizontal headers for in-line splice into the Beogram's existing button controller cable — J1 (socket, silkscreened `TO BOARD`) and J2 (header, silkscreened `TO KEYBOARD`). Pins 1, 2, 4, 6, 7, 8 pass straight through; pins 3 and 5 (CUE and PLAYPAUSE) also land on the optocoupler emitters so the ESP can switch +12V onto them alongside the real buttons.
-- **Flying leads**: the two COP410 sense signals and a ground reference come in on SMD test pads (TP2, TP3, TP5), and the four buck pads (PS1) go out to the module. Silkscreen is labelled by function — `On-Off IN`, `PlayPause IN`, `GND IN`, `12V`, `5V`, `GND` — so solder by the printed label, not the designator.
+- **Input filtering**: 10nF from each divider midpoint to ground, below R6/R8. The dividers present ~600kΩ to the ESP on wires that run past a motor; the caps give a ~6ms time constant, well inside the firmware's 50 ms debounce.
+- **Connectors**: two 1×8 horizontal headers for the in-line splice — J1 (socket, silkscreened `TO BOARD`) and J2 (header, silkscreened `TO KEYBOARD`). Pins 1, 2, 4, 6, 7, 8 pass straight through; pins 3 and 5 also land on the optocoupler emitters.
+- **Flying leads**: the two COP410 sense signals and a ground reference arrive on test pads (TP2, TP3, TP5); four more pads go out to the buck module. Everything is silkscreened by function — `On-Off IN`, `PlayPause IN`, `GND IN`, `12V`, `5V`, `GND` — so solder by the printed label, not the designator.
 
-PCB sources: `beogram-esp32.kicad_pcb`, `.kicad_sch`, `.kicad_pro`. BOM in [`bom.csv`](bom.csv).
+Board is 25 × 64 mm, two layers. Sources are `beogram-esp32.kicad_pcb` / `.kicad_sch` / `.kicad_pro`, with the BOM in [`bom.csv`](bom.csv).
 
 ### Pin map
 
-| XIAO pin | Pad | GPIO   | Net               | Purpose                                          |
-| -------- | --- | ------ | ----------------- | ------------------------------------------------ |
-| D0       | 1   | GPIO0  | IN_OnOff_3V3      | COP410 pin 11 → ESP. LOW = arm in (turntable on) |
-| D3       | 4   | GPIO21 | IN_PlayPause_3V3  | COP410 pin 12 → ESP. HIGH = playing              |
+| XIAO pin | Pad | GPIO   | Net               | Purpose                                              |
+| -------- | --- | ------ | ----------------- | ---------------------------------------------------- |
+| D0       | 1   | GPIO0  | IN_OnOff_3V3      | COP410 pin 11 → ESP. LOW = arm in (turntable on)     |
+| D3       | 4   | GPIO21 | IN_PlayPause_3V3  | COP410 pin 12 → ESP. HIGH = playing                  |
 | D8       | 9   | GPIO19 | DRV_PlayPause     | ESP → U2 opto LED. Pulse 500 ms to "press" PLAYPAUSE |
-| D10      | 11  | GPIO18 | DRV_Cue           | ESP → U3 opto LED. Pulse 500 ms to "press" CUE   |
-| 5V       | 14  | —      | VCC               | 5V in from the MP1584 buck (PS1)                 |
-| GND      | 13  | —      | GND               | Common ground                                    |
+| D10      | 11  | GPIO18 | DRV_Cue           | ESP → U3 opto LED. Pulse 500 ms to "press" CUE       |
+| 5V       | 14  | —      | VCC               | 5V in from the MP1584 buck (PS1)                     |
+| GND      | 13  | —      | GND               | Common ground                                        |
 
-D6/D7 (GPIO16/17) are UART0 and are deliberately left unconnected, so the ROM
-bootloader's serial output can't reach an optocoupler.
+D6/D7 (GPIO16/17) are UART0 and are left unconnected on purpose, so the ROM bootloader's serial output can't reach an optocoupler on reset.
 
 ## Firmware (ESPHome)
 
@@ -45,11 +66,11 @@ cp secrets.yaml.example secrets.yaml
 esphome run beogram-rx2.yaml
 ```
 
-First flash needs USB-C; subsequent updates happen OTA.
+First flash needs USB-C; after that, updates go over the air.
 
 ### Configuring the Sonos speaker
 
-After it joins WiFi, the device shows up in Home Assistant. Set the **"Sonos IP"** entity to your speaker's IP. That's the only setup.
+Once it joins WiFi the device shows up in Home Assistant. Set the **"Sonos IP"** entity to your speaker's address. That's the only setup — the RINCON UUID is discovered from the speaker on boot.
 
 ### Exposed entities
 
@@ -74,23 +95,37 @@ After it joins WiFi, the device shows up in Home Assistant. Set the **"Sonos IP"
 beogram-esp32.kicad_pro     KiCad project
 beogram-esp32.kicad_sch     Schematic
 beogram-esp32.kicad_pcb     PCB layout
-fp-lib-table                Registers New_XIAO_Series_Footprints
+fp-lib-table                Registers the project footprint libraries
+sym-lib-table               Registers the project symbol library
+beogram.pretty/             Project footprints (MP1584 wire pads)
+beogram.kicad_sym           Project symbols
 beogram-rx2.yaml            ESPHome firmware config
 secrets.yaml.example        Template for WiFi/OTA/API creds
 bom.csv                     Bill of materials — generated, do not hand-edit
-tools/                      Board scripts (see PCB-TODO.md)
-PCB-TODO.md                 Board change log and gotchas
+tools/                      Board scripts (BOM generation, footprint fixes)
 ```
 
-`bom.csv` is generated from the PCB, so it can't drift from what gets built:
+`bom.csv` is generated from the PCB so it can't drift from what gets built:
 
 ```bash
 python3 tools/gen_bom.py
 ```
 
-The other scripts in `tools/` need KiCad's bundled Python, which is the only one
-carrying the `pcbnew` module:
+The other scripts in `tools/` need KiCad's bundled Python, the only one carrying the `pcbnew` module:
 
 ```bash
 /Applications/KiCad/KiCad.app/Contents/Frameworks/Python.framework/Versions/Current/bin/python3 tools/<script>.py
 ```
+
+## Credits
+
+ESPHome, the Seeed Studio XIAO ESP32-C6, KiCad, and Bang & Olufsen's engineers, who documented the RX2 well enough to reverse a splice point out of it forty years later.
+
+## Donate
+
+beonos is free and open source. If it saved you an afternoon, donations are appreciated and keep this sort of thing going.
+[Donate now](https://www.buymeacoffee.com/wellsworkshop)
+
+## License
+
+[CC BY-NC-SA 4.0](LICENSE). © 2026 Wells Riley.
