@@ -6,6 +6,7 @@
 
 <p align="center">
   <a href="#what-is-it">What is it?</a> ⬪
+  <a href="#which-turntables">Which turntables</a> ⬪
   <a href="#hardware">Hardware</a> ⬪
   <a href="#firmware-esphome">Firmware</a> ⬪
   <a href="#repo-layout">Repo layout</a> ⬪
@@ -24,12 +25,30 @@
 
 ## What is it?
 
-A small ESP32-C6 board that splices into a Beogram RX2's button cable, reads what the turntable is doing, and presses its buttons back. The result is a turntable that behaves like any other Sonos source.
+A small ESP32-C6 board that splices into a Beogram's keyboard cable, reads what the turntable is doing, and presses its buttons back. The result is a turntable that behaves like any other Sonos source.
 
 - **Turntable → Sonos**: start the turntable and the speaker switches to Line-In and plays. Pause or switch off, and the speaker pauses.
 - **Sonos → turntable**: pick Line-In on the speaker and the turntable starts (it presses Cue). Switch away or pause, and the turntable stops. If there's no record on the platter, the firmware notices and pauses Sonos rather than leaving it playing silence.
 
 The board splices in-line, so nothing about the turntable is modified permanently — unplug the two headers and it's stock again.
+
+## Which turntables
+
+The last generation of radial-arm Beograms all share one control board, so the splice is the same across them:
+
+| Model | Years | Status |
+| ----- | ----- | ------ |
+| Beogram RX 2 | 1985–90 | Built and tested against this |
+| Beogram 1800 | 1983–84 | Confirmed from service manuals |
+| Beogram 2000 | 1983 | Confirmed from service manuals |
+| Beogram 5000 | 1984 | Confirmed from service manuals |
+| Beogram RX | 1984 | Very likely, not yet verified |
+
+The RX-2 service manual is published as a supplement to the Beogram 1800/2000/5000 manual, and the three share the same power supply (PCB 8005076) and control board (PCB 8005117). Their keyboards are the same two sub-boards — 8005070 for PLAY/STOP and 8005109 for 45/CUE/33 — landing on the same P7 pins, which is what this board splices into. The RX is unverified only because no manual was to hand; it replaced the 1800 and differs from the RX 2 mainly in being supplied with a pickup.
+
+**Not compatible.** The Beogram 2200 looks close but wires its speed switches straight to the control board alongside indicator lamps and a motor relay, with no separate keyboard board and no CUE or PLAY/STOP lines to intercept. Tangential-arm Beograms (4002, 8000, 6500, 7000, 9000, 5005 and relatives) use a different arm and control system entirely, and pre-1983 radial decks predate this microcomputer control.
+
+To identify an unknown deck, look for a control PCB stamped **8005117**, a 24-pin MCU marked **B040680** / **ETL 5410N**, and a keyboard on its own cable whose buttons switch +12V.
 
 ## Hardware
 
