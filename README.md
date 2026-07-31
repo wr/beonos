@@ -1,4 +1,4 @@
-<h1 align="center">beonos</h1>
+<h1 align="center">Beonos Controller</h1>
 
 <p align="center">
   <strong>Control your vintage Bang & Olufsen Beogram turntable from Home Assistant or Sonos.</strong>
@@ -14,7 +14,8 @@
 </p>
 
 <p align="center">
-  <img width="492" alt="beonos" src="https://github.com/user-attachments/assets/39ba7ad3-26b8-4cf6-aa79-a4e7724b0d99" />
+  <img width="492" alt="Beonos logo" src="https://github.com/user-attachments/assets/39ba7ad3-26b8-4cf6-aa79-a4e7724b0d99" />
+  <img width="100%" alt="Beonos Controller installed in a Beogram turntable" src="https://github.com/user-attachments/assets/b1c1c768-e191-483b-b89d-68e7f92d9bac" />
 </p>
 
 ---
