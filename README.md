@@ -1,4 +1,4 @@
-<img width="492" height="184" alt="beonos" src="https://github.com/user-attachments/assets/0bac70b3-670b-4b0c-a56c-cbdf7ba0482e" />
+<img width="1503" height="600" alt="beonos" src="https://github.com/user-attachments/assets/39ba7ad3-26b8-4cf6-aa79-a4e7724b0d99" />
 
 # beonos: Sonos integration for vintage Bang & Olufsen turntables
 
