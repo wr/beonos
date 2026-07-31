@@ -1,3 +1,6 @@
+<p align="center">
+  <img width="492" alt="Beonos logo" src="https://github.com/user-attachments/assets/39ba7ad3-26b8-4cf6-aa79-a4e7724b0d99" />
+</p>
 <h1 align="center">Beonos Controller</h1>
 
 <p align="center">
@@ -14,8 +17,7 @@
 </p>
 
 <p align="center">
-  <img width="492" alt="Beonos logo" src="https://github.com/user-attachments/assets/39ba7ad3-26b8-4cf6-aa79-a4e7724b0d99" />
-  <img width="2000" height="1500" alt="Beonos Controller installed in a Beogram turntable" src="https://github.com/user-attachments/assets/237d9ede-a18f-458d-916e-78443cdc5632" />
+  <img width="80%" alt="Beonos Controller installed in a Beogram turntable" src="https://github.com/user-attachments/assets/237d9ede-a18f-458d-916e-78443cdc5632" />
 </p>
 
 ---
