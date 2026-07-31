@@ -1,7 +1,7 @@
 <h1 align="center">beonos</h1>
 
 <p align="center">
-  <strong>Put a record on, and Sonos plays it. Two-way control between a vintage Bang &amp; Olufsen turntable and your speakers.</strong>
+  <strong>Control your vintage Bang & Olufsen Beogram turntable from Home Assistant or Sonos.</strong>
 </p>
 
 <p align="center">
@@ -14,18 +14,14 @@
 </p>
 
 <p align="center">
-  <img width="492" alt="beonos" src="https://github.com/user-attachments/assets/0bac70b3-670b-4b0c-a56c-cbdf7ba0482e" />
-</p>
-
-<p align="center">
-  <sub>Drop the needle and the speaker switches to Line-In on its own.</sub>
+  <img width="492" alt="beonos" src="https://github.com/user-attachments/assets/39ba7ad3-26b8-4cf6-aa79-a4e7724b0d99" />
 </p>
 
 ---
 
 ## What is it?
 
-A small ESP32-C6 board that splices into a Beogram's keyboard cable, reads what the turntable is doing, and presses its buttons back. The result is a turntable that behaves like any other Sonos source.
+A small ESP32-C6-powered custom PCB that splices into a Beogram's keyboard cable, reads what the turntable is doing, and sends play/pause/stop commands. The result is a 'smart' vintage turntable that behaves like a digital Sonos source.
 
 - **Turntable → Sonos**: start the turntable and the speaker switches to Line-In and plays. Pause or switch off, and the speaker pauses.
 - **Sonos → turntable**: pick Line-In on the speaker and the turntable starts (it presses Cue). Switch away or pause, and the turntable stops. If there's no record on the platter, the firmware notices and pauses Sonos rather than leaving it playing silence.
@@ -120,20 +116,7 @@ beogram.pretty/             Project footprints (MP1584 wire pads)
 beogram.kicad_sym           Project symbols
 beogram-rx2.yaml            ESPHome firmware config
 secrets.yaml.example        Template for WiFi/OTA/API creds
-bom.csv                     Bill of materials — generated, do not hand-edit
-tools/                      Board scripts (BOM generation, footprint fixes)
-```
-
-`bom.csv` is generated from the PCB so it can't drift from what gets built:
-
-```bash
-python3 tools/gen_bom.py
-```
-
-The other scripts in `tools/` need KiCad's bundled Python, the only one carrying the `pcbnew` module:
-
-```bash
-/Applications/KiCad/KiCad.app/Contents/Frameworks/Python.framework/Versions/Current/bin/python3 tools/<script>.py
+bom.csv                     Bill of materials
 ```
 
 ## Credits
@@ -142,7 +125,7 @@ ESPHome, the Seeed Studio XIAO ESP32-C6, KiCad, and Bang & Olufsen's engineers, 
 
 ## Donate
 
-beonos is free and open source. If it saved you an afternoon, donations are appreciated and keep this sort of thing going.
+While beonos is free and open source, donations are deeply appreciated, and make ongoing development and support possible.
 [Donate now](https://www.buymeacoffee.com/wellsworkshop)
 
 ## License
