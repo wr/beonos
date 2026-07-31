@@ -1,0 +1,7 @@
+(fp_lib_table
+  (version 7)
+
+  (lib (name "New_XIAO_Series_Footprints") (type "KiCad") (uri "${KIPRJMOD}/New_XIAO_Series_Footprints") (options "") (descr ""))
+
+  (lib (name "beogram") (type "KiCad") (uri "${KIPRJMOD}/beogram.pretty") (options "") (descr ""))
+)

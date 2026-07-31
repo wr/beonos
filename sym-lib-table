@@ -1,0 +1,4 @@
+(sym_lib_table
+	(version 7)
+	(lib (name "beogram") (type "KiCad") (uri "${KIPRJMOD}/beogram.kicad_sym") (options "") (descr "Project symbols"))
+)
