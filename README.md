@@ -25,7 +25,7 @@
 
 ## Buy a board
 
-You can order your own Beonos Controller from [PCBway](https://www.pcbway.com/project/shareproject/Beonos_Controller_80184a3d.html)
+You can order your own Beonos Controller from [PCBway](https://www.pcbway.com/project/shareproject/Beonos_Controller_80184a3d.html). You can [use my referral code](https://pcbway.com/g/AsfKU9) to get $5 off your order, if you want.
 
 ## What is it?
 
