@@ -11,6 +11,9 @@ _restore_backup_*/
 *.kicad_pcb.zip
 fp-info-cache
 
+# Fab output — regenerate from the board, don't commit
+gerbers/
+
 # ESPHome build artifacts
 .esphome/
 build/

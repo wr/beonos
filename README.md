@@ -122,9 +122,11 @@ fp-lib-table                Registers the project footprint libraries
 sym-lib-table               Registers the project symbol library
 beogram.pretty/             Project footprints (MP1584 wire pads)
 beogram.kicad_sym           Project symbols
+New_XIAO_Series_Footprints/ Seeed's XIAO footprint library (vendor)
 beogram-rx2.yaml            ESPHome firmware config
 secrets.yaml.example        Template for WiFi/OTA/API creds
 bom.csv                     Bill of materials
+bang-olufsen_beogram_rx2_sch.pdf   RX 2 service-manual schematic, for reference
 ```
 
 ## Credits
