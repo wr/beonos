@@ -19,6 +19,10 @@
 
 ---
 
+## Buy a board
+
+You can order your own Beonos Controller from [PCBway](https://www.pcbway.com/project/shareproject/Beonos_Controller_80184a3d.html)
+
 ## What is it?
 
 A small ESP32-C6-powered custom PCB that splices into a Beogram's keyboard cable, reads what the turntable is doing, and sends play/pause/stop commands. The result is a 'smart' vintage turntable that behaves like a digital Sonos source.
