@@ -9,6 +9,7 @@
 
 <p align="center">
   <a href="#what-is-it">What is it?</a> ⬪
+  <a href="#buy-a-board">Buy a board</a> ⬪
   <a href="#which-turntables">Which turntables</a> ⬪
   <a href="#hardware">Hardware</a> ⬪
   <a href="#firmware-esphome">Firmware</a> ⬪
