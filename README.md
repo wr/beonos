@@ -21,11 +21,15 @@
   <img width="80%" alt="Beonos Controller installed in a Beogram turntable" src="https://github.com/user-attachments/assets/237d9ede-a18f-458d-916e-78443cdc5632" />
 </p>
 
+<p align="center">
+  I recorded a full build video that <a href="https://youtu.be/ydfJdppEwTE">you can watch here</a>.
+</p>
+
 ---
 
 ## Buy a board
 
-You can order your own Beonos Controller from [PCBway](https://www.pcbway.com/project/shareproject/Beonos_Controller_80184a3d.html). You can [use my referral code](https://pcbway.com/g/AsfKU9) to get $5 off your order, if you want.
+You can order your own Beonos Controller from [PCBway](https://www.pcbway.com/project/shareproject/Beonos_Controller_80184a3d.html). You can [use my referral code](https://pcbway.com/g/AsfKU9) to get $5 off your order, if you want. In my experience they're usually pretty fast and high quality, especially for the price.
 
 ## What is it?
 
