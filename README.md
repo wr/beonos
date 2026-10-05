@@ -29,7 +29,9 @@
 
 ## Buy a board
 
-You can order your own Beonos Controller from [PCBway](https://www.pcbway.com/project/shareproject/Beonos_Controller_80184a3d.html). You can [use my referral code](https://pcbway.com/g/AsfKU9) to get $5 off your order, if you want. In my experience they're usually pretty fast and high quality, especially for the price.
+Get it as a kit, pre-soldered or not, from the [Wells Workshop shop](https://shop.wells.ee/products/beonos-kit/?ref=gh-beonos).
+
+Or order your own Beonos Controller from [PCBway](https://www.pcbway.com/project/shareproject/Beonos_Controller_80184a3d.html). You can [use my referral code](https://pcbway.com/g/AsfKU9) to get $5 off your order, if you want. In my experience they're usually pretty fast and high quality, especially for the price.
 
 ## What is it?
 
