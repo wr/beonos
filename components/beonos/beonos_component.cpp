@@ -426,6 +426,11 @@ void BeonosComponent::set_learned_line_in_(const std::string &uuid) {
 
 void BeonosComponent::apply_choice_() {
   const std::string chosen = this->chosen_uuid_();
+  // A different speaker: its first reading isn't a change anyone made.
+  if (chosen != this->reading_speaker_) {
+    this->reading_speaker_ = chosen;
+    this->awaiting_first_reading_ = true;
+  }
   sonos::Target target;
   if (!chosen.empty() && sonos::resolve_target(this->groups_, chosen, target)) {
     this->target_ = target;
@@ -447,7 +452,11 @@ void BeonosComponent::apply_choice_() {
   if (!this->target_.control_ip.empty())
     this->retry_delay_ms_ = FIRST_RETRY_MS;
   if (this->target_.control_ip.empty()) {
+    // Nothing to talk to: the sensors go back to off without that being
+    // something Sonos did, and whatever comes next starts afresh.
     this->reachable_ = false;
+    this->awaiting_first_reading_ = true;
+    this->first_reading_ = true;
     if (this->playing_) {
       this->playing_ = false;
       if (this->playing_sensor_ != nullptr)
@@ -458,6 +467,7 @@ void BeonosComponent::apply_choice_() {
       if (this->line_in_sensor_ != nullptr)
         this->line_in_sensor_->publish_state(false);
     }
+    this->first_reading_ = false;
   }
 
   // Status line.
@@ -540,6 +550,10 @@ void BeonosComponent::apply_poll_(const PollResult &result) {
   const bool line_in = sonos::is_line_in_uri(result.current_uri) && !source.empty() &&
                        (source == this->learned_line_in_ ||
                         sonos::is_own_line_in(this->groups_, this->chosen_uuid_(), source));
+  // The first reading after a restart or a speaker change only sets the
+  // starting point (see is_first_reading()).
+  this->first_reading_ = this->awaiting_first_reading_;
+  this->awaiting_first_reading_ = false;
   if (line_in != this->line_in_) {
     this->line_in_ = line_in;
     if (this->line_in_sensor_ != nullptr)
@@ -550,6 +564,7 @@ void BeonosComponent::apply_poll_(const PollResult &result) {
     if (this->playing_sensor_ != nullptr)
       this->playing_sensor_->publish_state(playing);
   }
+  this->first_reading_ = false;
 }
 
 void BeonosComponent::rebuild_options_() {

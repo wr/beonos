@@ -60,6 +60,11 @@ class BeonosComponent : public esphome::Component {
   bool is_playing() const { return this->playing_; }
   bool is_line_in() const { return this->line_in_; }
   bool has_speaker() const { return !this->target_.control_ip.empty(); }
+  // True while the playing and line-in sensors publish the first reading
+  // from a speaker (after a restart, or when a different speaker is chosen
+  // or lost). The bridge scripts take it as the starting point, not as
+  // something someone did in the Sonos app.
+  bool is_first_reading() const { return this->first_reading_; }
 
   // Entities, set from codegen.
   void set_speaker_select(SpeakerSelect *s) { this->speaker_select_ = s; }
@@ -158,6 +163,9 @@ class BeonosComponent : public esphome::Component {
 
   bool playing_{false};
   bool line_in_{false};
+  std::string reading_speaker_;
+  bool awaiting_first_reading_{true};
+  bool first_reading_{false};
   bool reachable_{false};
   std::string last_transport_;
   std::string last_uri_;
