@@ -115,7 +115,7 @@ void BeonosComponent::setup() {
   if (this->manual_address_text_ != nullptr)
     this->manual_address_text_->publish_state(this->manual_address_);
 
-  // "Beonos Setup 80a7fc": the same six characters as the board's name.
+  // "Beonos Setup 1a2b3c": the same six characters as the board's name.
   if (wifi::global_wifi_component != nullptr && wifi::global_wifi_component->has_ap()) {
     uint8_t mac[6];
     get_mac_address_raw(mac);

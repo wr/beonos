@@ -36,7 +36,7 @@ substitutions:
 esphome:
   name: ${name}
   friendly_name: ${friendly_name}
-  # Every board gets its own name (beonos-80a7fc), so kits never clash.
+  # Every board gets its own name (beonos-1a2b3c), so kits never clash.
   name_add_mac_suffix: true
   on_boot:
     priority: 250
