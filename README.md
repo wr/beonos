@@ -97,7 +97,9 @@ Every pre-soldered kit comes with the firmware installed. It's built on [ESPHome
 3. Choose your Wi-Fi network, type its password and tap **Connect**. Beonos needs a 2.4 GHz network. Leave **Install updates automatically** ticked unless you'd rather install updates yourself.
 4. The page tells you when Beonos has joined, or what went wrong if it couldn't. It also shows the board's own address, like `http://beonos-1a2b3c.local`. Note it down: that's where its settings live.
 
-Beonos then looks for a Sonos speaker with a line-in and uses it. If you have more than one, choose yours under **Sonos speaker** on the board's page. If it finds none, check that UPnP is on in the Sonos app (Account > Privacy & Security).
+Beonos then looks for a Sonos speaker with a line-in and uses it. If you have more than one, choose yours under **Sonos speaker** on the board's page. **Sonos speakers found** on the same page lists every speaker Beonos saw, with or without a line-in, and whether your system is S1 or S2. If it finds none, check that UPnP is on in the Sonos app (Account > Privacy & Security).
+
+To hear records in a room whose speaker has no line-in, choose the speaker the turntable is plugged into, then group the other room with it in the Sonos app.
 
 **The setup network only stays open for 15 minutes** after you plug the turntable in, once Beonos is on your Wi-Fi, so nobody nearby can change its Wi-Fi later. To move it to a new Wi-Fi network, unplug the turntable and plug it back in somewhere it can't reach the old one, or press **Reset** on the board's page.
 
@@ -135,6 +137,7 @@ esphome run beonos.factory.yaml
 | Sonos Playing                  | binary_sensor | the speaker is playing                         |
 | Sonos On Line-In               | binary_sensor | the speaker is playing its line-in             |
 | Sonos status                   | text_sensor   | which speaker Beonos is using, or what's wrong |
+| Sonos speakers found           | text_sensor   | every speaker found, with or without a line-in, and S1 or S2 |
 | Sonos transport state          | text_sensor   | PLAYING / PAUSED_PLAYBACK / STOPPED            |
 | Sonos current URI              | text_sensor   | what the speaker is playing                    |
 | Sonos speaker                  | select        | choose the speaker when there's more than one  |
