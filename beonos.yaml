@@ -1,0 +1,335 @@
+# Beonos: Bang & Olufsen Beogram turntable ↔ Sonos bridge
+# Seeed XIAO ESP32-C6 on the Beonos board.
+#
+# This is the core configuration: what the board does. Kits ship with
+# beonos.factory.yaml, which adds setup over USB, automatic
+# updates and a Reset button on top of this file. If you adopt the board into
+# Home Assistant's ESPHome add-on, this is the file you get.
+#
+# Pin map (matches the PCB):
+#   GPIO0  (D0)  — IN_OnOff_3V3      input from COP410 pin 11 via 1M/1.5M divider
+#                                    COP410: LOW = arm-in (turntable ON), HIGH = arm-out (OFF)
+#                                    Inverted so the sensor reads true when the turntable is on.
+#   GPIO21 (D3)  — IN_PlayPause_3V3  input from COP410 pin 12 via 1M/1.5M divider
+#                                    COP410: HIGH = playing, LOW = paused/cued
+#   GPIO19 (D8)  — DRV_PlayPause     drives U2 optocoupler LED; pulse HIGH 500ms
+#                                    to switch +12V onto the PLAYPAUSE button line
+#   GPIO18 (D10) — DRV_Cue           drives U3 optocoupler LED; pulse HIGH 500ms
+#                                    to switch +12V onto the CUE button line
+#
+# The board talks to the Sonos speaker directly (UPnP on port 1400), so it
+# works without Home Assistant. It finds the speaker with a line-in by itself.
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+substitutions:
+  name: beonos
+  friendly_name: Beonos
+  # Where the beonos component comes from. The factory build uses the copy in
+  # this repo; an adopted config fetches it from GitHub.
+  beonos_components: github://wr/beonos@main
+  # How long to wait after pressing Cue before deciding "no record present".
+  no_record_timeout: "6s"
+  # Optocoupler drive pulse — long enough for the turntable's IC to register.
+  press_pulse: "500ms"
+
+esphome:
+  name: ${name}
+  friendly_name: ${friendly_name}
+  # Every board gets its own name (beonos-1a2b3c), so kits never clash.
+  name_add_mac_suffix: true
+  on_boot:
+    priority: 250
+    then:
+      # Wait for inputs to settle before bridge logic kicks in, so we don't
+      # mistake startup transients for state changes.
+      - delay: 3s
+      - globals.set:
+          id: system_ready
+          value: "true"
+      - logger.log: "System ready — bridge logic active"
+
+esp32:
+  board: seeed_xiao_esp32c6
+  framework:
+    type: esp-idf
+
+external_components:
+  - source: ${beonos_components}
+    components: [beonos]
+
+logger:
+  level: INFO
+
+api:
+  # No key is built in: Home Assistant sets one the first time it connects.
+  encryption: {}
+  # Most owners never connect Home Assistant; don't reboot waiting for it.
+  reboot_timeout: 0s
+
+ota:
+  - platform: esphome
+
+wifi:
+  # No network is built in. Until the board has one, it opens the
+  # "Beonos Setup" network; see the beonos component for when that closes.
+  ap: {}
+
+captive_portal:
+
+web_server:
+  version: 3
+
+# ── Sonos ───────────────────────────────────────────────────────────────────
+
+beonos:
+  id: sonos
+  speaker:
+    name: "Sonos speaker"
+  manual_address:
+    name: "Speaker address (advanced)"
+  status:
+    name: "Sonos status"
+  speakers_found:
+    name: "Sonos speakers found"
+  transport_state:
+    name: "Sonos transport state"
+  current_uri:
+    name: "Sonos current URI"
+  playing:
+    name: "Sonos Playing"
+    id: sonos_playing
+    on_state:
+      then:
+        - script.execute: react_to_sonos
+  line_in:
+    name: "Sonos On Line-In"
+    id: sonos_line_in
+    on_state:
+      then:
+        - script.execute: react_to_sonos
+
+# ── Globals ─────────────────────────────────────────────────────────────────
+
+globals:
+  - id: system_ready
+    type: bool
+    initial_value: "false"
+  - id: prev_turntable_on
+    type: bool
+    initial_value: "false"
+  - id: prev_turntable_playing
+    type: bool
+    initial_value: "false"
+  - id: prev_sonos_line_in
+    type: bool
+    initial_value: "false"
+  - id: prev_sonos_playing
+    type: bool
+    initial_value: "false"
+
+# ── Turntable ───────────────────────────────────────────────────────────────
+
+binary_sensor:
+  - platform: gpio
+    name: "Turntable On"
+    id: turntable_on
+    pin:
+      number: GPIO0
+      mode:
+        input: true
+      inverted: true   # COP410 pin 11 is LOW when arm is in (playing position)
+    filters:
+      - delayed_on: 50ms
+      - delayed_off: 50ms
+    on_state:
+      then:
+        - script.execute: react_to_turntable
+
+  - platform: gpio
+    name: "Turntable Playing"
+    id: turntable_playing
+    pin:
+      number: GPIO21
+      mode:
+        input: true
+    filters:
+      - delayed_on: 50ms
+      - delayed_off: 50ms
+    on_state:
+      then:
+        - script.execute: react_to_turntable
+
+output:
+  - platform: gpio
+    pin: GPIO19
+    id: drv_playpause
+  - platform: gpio
+    pin: GPIO18
+    id: drv_cue
+
+button:
+  - platform: template
+    name: "Press Play-Pause"
+    on_press:
+      - script.execute: pulse_playpause
+
+  - platform: template
+    name: "Press Cue"
+    on_press:
+      - script.execute: pulse_cue
+
+  - platform: template
+    name: "Sonos Play"
+    on_press:
+      - lambda: "id(sonos).play();"
+
+  - platform: template
+    name: "Sonos Pause"
+    on_press:
+      - lambda: "id(sonos).pause();"
+
+  - platform: template
+    name: "Sonos Switch to Line-In"
+    on_press:
+      - lambda: "id(sonos).switch_to_line_in();"
+
+  - platform: template
+    name: "Search for speakers"
+    entity_category: config
+    on_press:
+      - lambda: "id(sonos).search_now();"
+
+sensor:
+  - platform: wifi_signal
+    name: "WiFi Signal"
+    update_interval: 60s
+
+# ── Scripts ─────────────────────────────────────────────────────────────────
+
+script:
+  # Pulse the optocoupler drivers HIGH for press_pulse — this switches +12V
+  # onto the button line via the LTV-356T — then release.
+  - id: pulse_playpause
+    mode: single
+    then:
+      - logger.log:
+          format: "Press: PLAYPAUSE"
+          level: INFO
+      - output.turn_on: drv_playpause
+      - delay: ${press_pulse}
+      - output.turn_off: drv_playpause
+
+  - id: pulse_cue
+    mode: single
+    then:
+      - logger.log:
+          format: "Press: CUE"
+          level: INFO
+      - output.turn_on: drv_cue
+      - delay: ${press_pulse}
+      - output.turn_off: drv_cue
+
+  # Bridge logic: turntable → Sonos
+  - id: react_to_turntable
+    mode: queued
+    then:
+      # Guard as an if/else wrapper rather than `script.stop: self`, which does
+      # not reliably abort the remaining actions in the same invocation.
+      - if:
+          condition:
+            lambda: "return id(system_ready);"
+          then:
+            - lambda: |-
+                bool tt_on = id(turntable_on).state;
+                bool tt_play = id(turntable_playing).state;
+                bool was_on = id(prev_turntable_on);
+                bool was_play = id(prev_turntable_playing);
+
+                if (tt_on && !was_on) {
+                  ESP_LOGI("bridge", "Turntable turned ON");
+                }
+
+                // Started playing (arm down, motor on)
+                if (tt_on && tt_play && !was_play) {
+                  ESP_LOGI("bridge", "Turntable started playing → switch Sonos to Line-In + play");
+                  // Only (re)assert the URI if we are not already on Line-In —
+                  // re-sending SetAVTransportURI blips Sonos through a transitional
+                  // state that the poller can misread as "paused", which would
+                  // then bounce back and pause the deck we just started.
+                  if (!id(sonos).is_line_in()) id(sonos).switch_to_line_in();
+                  id(sonos).play();
+                }
+                // Paused while still on
+                else if (tt_on && was_play && !tt_play) {
+                  ESP_LOGI("bridge", "Turntable paused → pause Sonos if on Line-In");
+                  if (id(sonos).is_line_in()) id(sonos).pause();
+                }
+                // Turned off
+                else if (was_on && !tt_on) {
+                  ESP_LOGI("bridge", "Turntable turned OFF → pause Sonos if on Line-In");
+                  if (id(sonos).is_line_in()) id(sonos).pause();
+                }
+
+                id(prev_turntable_on) = tt_on;
+                id(prev_turntable_playing) = tt_play;
+
+  # Bridge logic: Sonos → turntable
+  - id: react_to_sonos
+    mode: queued
+    then:
+      # Guard as an if/else wrapper rather than `script.stop: self`.
+      - if:
+          condition:
+            lambda: "return id(system_ready);"
+          then:
+            # Capture rising edge of "Sonos picks line-in and starts playing"
+            # while the turntable is off. Press Cue, then verify a record actually
+            # spun up — if not, pause Sonos to avoid blasting the noise floor.
+            - if:
+                condition:
+                  lambda: |-
+                    bool now = id(sonos_line_in).state && id(sonos_playing).state;
+                    bool was = id(prev_sonos_line_in) && id(prev_sonos_playing);
+                    return now && !was && !id(turntable_on).state;
+                then:
+                  - logger.log: "Sonos selected Line-In + playing while turntable off → press Cue"
+                  - script.execute: pulse_cue
+                  - delay: ${no_record_timeout}
+                  - if:
+                      condition:
+                        and:
+                          - binary_sensor.is_on: sonos_line_in
+                          - binary_sensor.is_off: turntable_on
+                      then:
+                        - logger.log: "No record present — pause Sonos"
+                        - lambda: "id(sonos).pause();"
+
+            - lambda: |-
+                bool sonos_li = id(sonos_line_in).state;
+                bool sonos_pl = id(sonos_playing).state;
+                bool was_li = id(prev_sonos_line_in);
+                bool was_pl = id(prev_sonos_playing);
+                bool tt_on = id(turntable_on).state;
+                bool tt_play = id(turntable_playing).state;
+
+                // Sonos switched away from line-in while turntable on → turn turntable off
+                if (was_li && !sonos_li && tt_on) {
+                  ESP_LOGI("bridge", "Sonos left Line-In → press PLAYPAUSE to stop turntable");
+                  id(pulse_playpause).execute();
+                }
+
+                // Sonos started playing on line-in, turntable on but paused → press Cue to play
+                if (sonos_li && sonos_pl && !was_pl && tt_on && !tt_play) {
+                  ESP_LOGI("bridge", "Sonos started on Line-In, turntable paused → press CUE");
+                  id(pulse_cue).execute();
+                }
+
+                // Sonos paused on line-in, turntable playing → press Cue to pause
+                if (sonos_li && was_pl && !sonos_pl && tt_on && tt_play) {
+                  ESP_LOGI("bridge", "Sonos paused on Line-In, turntable playing → press CUE");
+                  id(pulse_cue).execute();
+                }
+
+                id(prev_sonos_line_in) = sonos_li;
+                id(prev_sonos_playing) = sonos_pl;

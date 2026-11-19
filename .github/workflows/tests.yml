@@ -1,0 +1,25 @@
+# Runs the host tests for the beonos component's pure code (Sonos parsing,
+# speaker choice, setup page results).
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+name: Tests
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  host-tests:
+    name: Host tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - name: Run tests
+        run: tests/run.sh

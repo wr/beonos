@@ -1,0 +1,29 @@
+# Release notes for the draft release. The version is worked out in
+# .github/workflows/release-drafter.yml and passed in, so the version
+# resolver here is unused.
+#
+# Adapted from esphome/esphome-project-template
+# (https://github.com/esphome/esphome-project-template), Apache License 2.0.
+# SPDX-License-Identifier: GPL-3.0-or-later
+name-template: "$RESOLVED_VERSION"
+tag-template: "$RESOLVED_VERSION"
+categories:
+  - title: "Breaking Changes"
+    label: "breaking-change"
+  - title: "Dependencies"
+    collapse-after: 1
+    labels:
+      - "dependencies"
+
+template: |
+  > [!CAUTION]
+  > **DO NOT PUBLISH THIS RELEASE YET!**
+  > Build assets have not been uploaded. Wait for the build workflow to complete
+  > and this notice to be removed before publishing.
+  <!-- ASSETS_PENDING -->
+
+  ## What's Changed
+
+  $CHANGES
+
+  **Full Changelog**: https://github.com/$OWNER/$REPOSITORY/compare/$PREVIOUS_TAG...$RESOLVED_VERSION

@@ -12,7 +12,7 @@
   <a href="#buy-a-board">Buy a board</a> ⬪
   <a href="#which-turntables">Which turntables</a> ⬪
   <a href="#hardware">Hardware</a> ⬪
-  <a href="#firmware-esphome">Firmware</a> ⬪
+  <a href="#firmware">Firmware</a> ⬪
   <a href="#repo-layout">Repo layout</a> ⬪
   <a href="#license">License</a>
 </p>
@@ -86,37 +86,70 @@ Board is 25 × 64 mm, two layers. Sources are `beogram-esp32.kicad_pcb` / `.kica
 
 D6/D7 (GPIO16/17) are UART0 and are left unconnected on purpose, so the ROM bootloader's serial output can't reach an optocoupler on reset.
 
-## Firmware (ESPHome)
+## Firmware
+
+Every pre-soldered kit comes with the firmware installed. It's built on [ESPHome](https://esphome.io). You need a Sonos speaker with a line-in; Home Assistant is optional.
+
+### Setting it up
+
+1. Wire the board in and switch the turntable on.
+2. On your phone, join the Wi-Fi network **Beonos Setup** followed by a six-character code. A setup page opens. If it doesn't, open `http://192.168.4.1`.
+3. Choose your Wi-Fi network, type its password and tap **Connect**. Beonos needs a 2.4 GHz network. Leave **Install updates automatically** ticked unless you'd rather install updates yourself.
+4. The page tells you when Beonos has joined, or what went wrong if it couldn't. It also shows the board's own address, like `http://beonos-1a2b3c.local`. Note it down: that's where its settings live.
+
+Beonos then looks for a Sonos speaker with a line-in and uses it. If you have more than one, choose yours under **Sonos speaker** on the board's page. **Sonos speakers found** on the same page lists every speaker Beonos saw, with or without a line-in, and whether your system is S1 or S2. If it finds none, check that UPnP is on in the Sonos app (Account > Privacy & Security).
+
+To hear records in a room whose speaker has no line-in, choose the speaker the turntable is plugged into, then group the other room with it in the Sonos app.
+
+**The setup network only stays open for 15 minutes** after you plug the turntable in, once Beonos is on your Wi-Fi, so nobody nearby can change its Wi-Fi later. To move it to a new Wi-Fi network, unplug the turntable and plug it back in somewhere it can't reach the old one, or press **Reset** on the board's page.
+
+### The board's page
+
+Open the address from the setup page in a browser on the same Wi-Fi. If `.local` addresses don't work on your network, use the board's IP address from your router instead. The page shows what the turntable and speaker are doing, and has the speaker choice, the update settings and a **Reset** button.
+
+**Updates** come from this repo's releases. Beonos checks for them by itself and installs them only while the turntable is off, so an update never interrupts a record. Turn off **Install updates automatically** to install them yourself from the page instead.
+
+**Reset** wipes the Wi-Fi details, the speaker choice and the update setting, and Beonos goes back to setup.
+
+### Home Assistant
+
+Once Beonos is on your Wi-Fi, Home Assistant should find it as a new device. If it doesn't, add the ESPHome integration with the board's address. Either way, Home Assistant sets up an encrypted connection by itself. You can then use its sensors and buttons in automations.
+
+To change the firmware itself, adopt the board in the ESPHome add-on. After that, the add-on builds and updates it, and it stops taking updates from this repo.
+
+### Installing it on a board you built
+
+Use the installer at [wr.github.io/beonos](https://wr.github.io/beonos/) from Chrome or Edge, with the board on USB-C. Or build it yourself with ESPHome 2026.11.0:
 
 ```bash
-pip install esphome
-cp secrets.yaml.example secrets.yaml
-# fill in WiFi creds in secrets.yaml
-esphome run beogram-rx2.yaml
+pip install esphome==2026.11.0
+esphome run beonos.factory.yaml
 ```
 
-First flash needs USB-C; after that, updates go over the air.
+`tests/run.sh` runs the component's tests on a computer (it needs a C++17 compiler).
 
-### Configuring the Sonos speaker
+### Entities
 
-Once it joins WiFi the device shows up in Home Assistant. Set the **"Sonos IP"** entity to your speaker's address. That's the only setup — the RINCON UUID is discovered from the speaker on boot.
-
-### Exposed entities
-
-| Entity                    | Type           | Notes                                   |
-| ------------------------- | -------------- | --------------------------------------- |
-| Turntable On              | binary_sensor  | true = arm in / playing position        |
-| Turntable Playing         | binary_sensor  | true = motor on, arm down               |
-| Sonos Playing             | binary_sensor  | derived from polled transport state     |
-| Sonos On Line-In          | binary_sensor  | true if speaker is on line-in           |
-| Sonos Transport State     | text_sensor    | PLAYING / PAUSED_PLAYBACK / STOPPED     |
-| Sonos Current URI         | text_sensor    | what the speaker is currently playing   |
-| Sonos IP                  | text (config)  | edit in HA, persists across reboots     |
-| Press Play/Pause          | button         | manually fire the turntable's PLAYPAUSE |
-| Press Cue                 | button         | manually fire the turntable's CUE       |
-| Sonos Play / Pause        | buttons        | manual SOAP commands                    |
-| Sonos Switch to Line-In   | button         | manual SOAP command                     |
-| WiFi Signal               | sensor         | dBm, 60s update                         |
+| Entity                         | Type          | Notes                                          |
+| ------------------------------ | ------------- | ---------------------------------------------- |
+| Turntable On                   | binary_sensor | on = arm in / playing position                 |
+| Turntable Playing              | binary_sensor | on = motor on, arm down                        |
+| Sonos Playing                  | binary_sensor | the speaker is playing                         |
+| Sonos On Line-In               | binary_sensor | the speaker is playing its line-in             |
+| Sonos status                   | text_sensor   | which speaker Beonos is using, or what's wrong |
+| Sonos speakers found           | text_sensor   | every speaker found, with or without a line-in, and S1 or S2 |
+| Sonos transport state          | text_sensor   | PLAYING / PAUSED_PLAYBACK / STOPPED            |
+| Sonos current URI              | text_sensor   | what the speaker is playing                    |
+| Sonos speaker                  | select        | choose the speaker when there's more than one  |
+| Speaker address (advanced)     | text          | only if the search can't find your speaker     |
+| Install updates automatically  | switch        | on by default                                  |
+| Firmware                       | update        | install an update by hand                      |
+| Search for speakers            | button        | search again now                               |
+| Press Play-Pause / Press Cue   | buttons       | press the turntable's own buttons              |
+| Sonos Play / Pause             | buttons       | send the speaker a command                     |
+| Sonos Switch to Line-In        | button        | switch the speaker to its line-in              |
+| Reset                          | button        | back to setup, with settings wiped             |
+| WiFi Signal                    | sensor        | dBm                                            |
 
 ## Repo layout
 
@@ -129,9 +162,13 @@ sym-lib-table               Registers the project symbol library
 beogram.pretty/             Project footprints (MP1584 wire pads)
 beogram.kicad_sym           Project symbols
 New_XIAO_Series_Footprints/ Seeed's XIAO footprint library (vendor)
-beogram-rx2.yaml            ESPHome firmware config
-secrets.yaml.example        Template for WiFi/OTA/API creds
 bom.csv                     Bill of materials
+beonos.yaml                 Firmware: what the board does
+beonos.factory.yaml         Firmware: what ships on kits (setup, updates, Reset)
+components/beonos/          Firmware: Sonos search and control, setup page
+tests/                      Tests for the component's parsing and setup logic
+static/                     The installer site at wr.github.io/beonos
+.github/workflows/          Builds, releases and the installer site
 bang-olufsen_beogram_rx2_sch.pdf   RX 2 service-manual schematic, for reference
 ```
 
@@ -146,4 +183,4 @@ While beonos is free and open source, donations are deeply appreciated, and make
 
 ## License
 
-[CC BY-NC-SA 4.0](LICENSE). © 2026 Wells Riley.
+The hardware is [CC BY-NC-SA 4.0](LICENSE) and the firmware is [GPL-3.0-or-later](LICENSE-GPL-3.0.txt). See [LICENSE](LICENSE) for which files are which. © 2026 Wells Riley.

@@ -1,0 +1,5 @@
+# Adapted from esphome/esphome-project-template
+# (https://github.com/esphome/esphome-project-template), Apache License 2.0.
+title: Beonos
+description: Firmware for the Beonos Controller
+theme: jekyll-theme-slate
