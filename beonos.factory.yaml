@@ -76,5 +76,7 @@ interval:
               - binary_sensor.is_off: turntable_on
               - binary_sensor.is_off: turntable_playing
           then:
-            - logger.log: "Installing firmware update (turntable is off)"
+            - logger.log:
+                format: "Installing firmware update (turntable is off)"
+                level: INFO
             - update.perform: firmware
