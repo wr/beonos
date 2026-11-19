@@ -1,0 +1,30 @@
+# Adapted from esphome/esphome-project-template
+# (https://github.com/esphome/esphome-project-template), Apache License 2.0.
+# SPDX-License-Identifier: GPL-3.0-or-later
+name: YAML lint
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "**.yaml"
+      - "**.yml"
+      - ".yamllint"
+  pull_request:
+    paths:
+      - "**.yaml"
+      - "**.yml"
+      - ".yamllint"
+
+permissions:
+  contents: read
+
+jobs:
+  yamllint:
+    name: yamllint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out configuration from GitHub
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - name: Run yamllint
+        run: yamllint --strict .

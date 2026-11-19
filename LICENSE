@@ -2,6 +2,16 @@ beonos-controller
 
 Copyright (c) 2026 Wells Riley
 
+This repository holds hardware and firmware, under two different licences.
+
+
+HARDWARE: CC BY-NC-SA 4.0
+
+The PCB design files: the KiCad project, schematic and layout
+(beogram-esp32.kicad_pro, .kicad_sch, .kicad_pcb), the project footprints and
+symbols (beogram.pretty/, beogram.kicad_sym, fp-lib-table, sym-lib-table) and
+the bill of materials (bom.csv).
+
 Licensed under Creative Commons Attribution-NonCommercial-ShareAlike 4.0
 International (CC BY-NC-SA 4.0).
 
@@ -18,5 +28,32 @@ Under the following terms:
 Full license:        https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode
 Human-readable:      https://creativecommons.org/licenses/by-nc-sa/4.0/
 
-This license covers the PCB design files in this repository. The rest is
-published as-is for personal, non-commercial use.
+
+FIRMWARE: GNU GPL v3 or later
+
+The ESPHome configuration (beonos.yaml, beonos.factory.yaml), the beonos
+component (components/), its tests (tests/), the build and release workflows
+(.github/) and the firmware site (static/).
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+Full license: LICENSE-GPL-3.0.txt, or https://www.gnu.org/licenses/gpl-3.0.html
+
+Some workflow and site files are adapted from esphome/esphome-project-template
+and esphome/workflows, which are under the Apache License 2.0. Each of those
+files says so at the top.
+
+
+NOT COVERED
+
+New_XIAO_Series_Footprints/ is Seeed Studio's XIAO footprint library, and
+bang-olufsen_beogram_rx2_sch.pdf is a schematic from Bang & Olufsen's service
+manual, included for reference. Both belong to their makers and aren't covered
+by the licences above.

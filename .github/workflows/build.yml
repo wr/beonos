@@ -1,0 +1,37 @@
+# Builds the factory firmware on every pull request (so a broken build is
+# caught before merge) and, after each merge to main, attaches the build to
+# the draft release that Release Drafter keeps up to date.
+#
+# Adapted from esphome/esphome-project-template
+# (https://github.com/esphome/esphome-project-template), Apache License 2.0.
+# SPDX-License-Identifier: GPL-3.0-or-later
+name: Build
+
+on:
+  pull_request:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["Release Drafter"]
+    types: [completed]
+
+# The called workflow's draft-release jobs (read draft info, upload assets,
+# strip the pending warning) need contents: write; they only run on
+# workflow_run events. Fork pull requests still get a read-only token.
+permissions:
+  contents: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'workflow_run' && 'release-drafter' || github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build to Draft Release
+    # Builds beonos.factory.yaml. It uses this checkout's own copy of the
+    # beonos component, so a pull request builds its own changes. The
+    # version is "dev-..." except on release builds, where it's the draft's
+    # tag.
+    uses: esphome/workflows/.github/workflows/build-to-draft-release.yml@cc3e76de337dc59bc1cba8da58d963cd23b873f1  # 2026.9.0
+    with:
+      combined-name: beonos
+      esphome-version: 2026.11.0
