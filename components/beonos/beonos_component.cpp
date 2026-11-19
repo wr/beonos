@@ -12,6 +12,9 @@
 #include "esphome/core/hal.h"
 #include "esphome/core/log.h"
 
+#ifdef USE_API
+#include "esphome/components/api/api_server.h"
+#endif
 #ifdef USE_ESP32_BLE
 #include "esphome/components/esp32_ble/ble.h"
 #endif
@@ -494,6 +497,7 @@ void BeonosComponent::rebuild_options_() {
     if (!chosen.empty() && uuids[i] == chosen)
       selected = i;
 
+  const bool changed = labels != this->option_labels_;
   this->option_labels_ = std::move(labels);
   this->option_uuids_ = std::move(uuids);
   FixedVector<const char *> options;
@@ -502,6 +506,24 @@ void BeonosComponent::rebuild_options_() {
     options.push_back(l.c_str());
   this->speaker_select_->traits.set_options(options);
   this->speaker_select_->publish_state(selected);
+  if (changed)
+    this->refresh_home_assistant_();
+}
+
+// Home Assistant reads a select's choices only when it connects, so it keeps
+// showing the old speaker list until it reconnects. Asking it to disconnect
+// makes it come back a few seconds later and read the new list.
+void BeonosComponent::refresh_home_assistant_() {
+#ifdef USE_API
+  if (api::global_api_server == nullptr || !api::global_api_server->is_connected())
+    return;
+  ESP_LOGI(TAG, "Speaker list changed; asking Home Assistant to reconnect");
+  for (const auto &conn : api::global_api_server->active_clients()) {
+    api::DisconnectRequest request;
+    if (!conn->send_message(request))
+      ESP_LOGW(TAG, "Couldn't ask a client to reconnect");
+  }
+#endif
 }
 
 void BeonosComponent::on_speaker_picked(const std::string &room) {

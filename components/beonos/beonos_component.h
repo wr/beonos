@@ -99,6 +99,7 @@ class BeonosComponent : public esphome::Component {
   void apply_poll_(const PollResult &result);
   void apply_choice_();
   void rebuild_options_();
+  void refresh_home_assistant_();
   void publish_status_(const std::string &status);
   void save_speaker_(const std::string &uuid, const std::string &room);
   void close_setup_window_();
