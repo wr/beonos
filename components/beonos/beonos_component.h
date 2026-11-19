@@ -94,10 +94,15 @@ class BeonosComponent : public esphome::Component {
   struct SavedAddress {
     char address[16];
   };
+  struct SavedLineIn {
+    char uuid[48];
+  };
 
   void apply_search_(const SearchResult &result);
   void apply_poll_(const PollResult &result);
   void apply_choice_();
+  std::string chosen_uuid_() const;
+  void set_learned_line_in_(const std::string &uuid);
   void rebuild_options_();
   void refresh_home_assistant_();
   void publish_status_(const std::string &status);
@@ -123,6 +128,7 @@ class BeonosComponent : public esphome::Component {
 
   esphome::ESPPreferenceObject speaker_pref_;
   esphome::ESPPreferenceObject address_pref_;
+  esphome::ESPPreferenceObject line_in_pref_;
 
   std::string saved_uuid_;
   std::string saved_room_;
@@ -153,6 +159,7 @@ class BeonosComponent : public esphome::Component {
   bool network_was_up_{false};
   uint32_t network_up_since_{0};
   uint32_t last_search_{0};
+  uint32_t retry_delay_ms_{30 * 1000};
   bool first_search_done_{false};
 
   // Result of the last Wi-Fi save from the setup page: a setup::WifiResult,
@@ -161,14 +168,14 @@ class BeonosComponent : public esphome::Component {
   std::atomic<uint8_t> setup_result_{SETUP_IDLE};
   uint32_t setup_attempt_started_{0};
   uint32_t joins_at_attempt_{0};
-  uint32_t disconnects_at_attempt_{0};
+  uint32_t password_drops_at_attempt_{0};
+  uint32_t not_found_drops_at_attempt_{0};
   bool joined_since_attempt_{false};
   uint32_t joined_at_{0};
-  uint32_t disconnects_at_join_{0};
   // Counted by the Wi-Fi driver's event task.
   std::atomic<uint32_t> joins_{0};
-  std::atomic<uint32_t> disconnects_{0};
-  std::atomic<uint16_t> last_disconnect_reason_{0};
+  std::atomic<uint32_t> password_drops_{0};
+  std::atomic<uint32_t> not_found_drops_{0};
 
   uint32_t setup_window_ms_{15 * 60 * 1000};
   bool setup_window_closed_{false};

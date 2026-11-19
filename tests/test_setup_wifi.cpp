@@ -34,23 +34,28 @@ static void test_address_means_connected() {
   Attempt a = at(5000);
   a.has_address = true;
   a.joined = true;
-  a.last_drop = Drop::PASSWORD;  // an earlier attempt's drop doesn't matter
+  a.password_drops = 3;  // earlier drops don't matter once it's on
   CHECK_EQ(judge_attempt(a), WifiResult::CONNECTED);
 }
 
-static void test_password_drop_before_joining_is_wrong_password() {
+static void test_one_password_drop_isnt_a_verdict() {
+  // Seen on the bench: one "Auth Expired" with a correct password.
   Attempt a = at(6000);
-  a.last_drop = Drop::PASSWORD;
+  a.password_drops = 1;
+  CHECK_EQ(judge_attempt(a), WifiResult::CONNECTING);
+}
+
+static void test_two_password_drops_before_joining_is_wrong_password() {
+  Attempt a = at(9000);
+  a.password_drops = 2;
   CHECK_EQ(judge_attempt(a), WifiResult::WRONG_PASSWORD);
 }
 
 static void test_joined_means_the_password_worked() {
-  // The router accepted the password, so a later password-looking drop is
-  // something else.
   Attempt a = at(8000);
   a.joined = true;
   a.joined_for_ms = 3000;
-  a.last_drop = Drop::PASSWORD;
+  a.password_drops = 2;
   CHECK_EQ(judge_attempt(a), WifiResult::CONNECTING);
 }
 
@@ -63,36 +68,27 @@ static void test_joined_without_address_for_too_long() {
   CHECK_EQ(judge_attempt(a), WifiResult::NO_ADDRESS);
 }
 
-static void test_dropped_after_joining_is_no_address() {
-  Attempt a = at(9000);
-  a.joined = true;
-  a.joined_for_ms = 4000;
-  a.dropped_after_join = true;
-  a.last_drop = Drop::OTHER;
-  CHECK_EQ(judge_attempt(a), WifiResult::NO_ADDRESS);
-}
-
-static void test_bench_case_auth_expired_after_join() {
-  // Seen on the bench, 2026-11-18: the router logged the board as connected,
-  // the board timed out waiting for an address and left, and its next try
-  // ended in "Auth Expired". The page must not blame the password.
+static void test_bench_case_joined_but_no_address() {
+  // Seen on the bench, 2026-11-18: the router logged the board as connected
+  // for ~40 s at a time but never gave it an address, and one try ended in
+  // "Auth Expired". The page must not blame the password.
   Attempt a = at(42000);
   a.joined = true;
   a.joined_for_ms = 40000;
-  a.dropped_after_join = true;
-  a.last_drop = Drop::PASSWORD;
+  a.password_drops = 1;
   CHECK_EQ(judge_attempt(a), WifiResult::NO_ADDRESS);
 }
 
-static void test_network_not_found() {
+static void test_network_not_found_needs_two() {
   Attempt a = at(7000);
-  a.last_drop = Drop::NOT_FOUND;
+  a.not_found_drops = 1;
+  CHECK_EQ(judge_attempt(a), WifiResult::CONNECTING);
+  a.not_found_drops = 2;
   CHECK_EQ(judge_attempt(a), WifiResult::NOT_FOUND);
 }
 
 static void test_other_drops_wait_then_fail() {
   Attempt a = at(GIVE_UP_AFTER_MS - 1000);
-  a.last_drop = Drop::OTHER;
   CHECK_EQ(judge_attempt(a), WifiResult::CONNECTING);
   a.elapsed_ms = GIVE_UP_AFTER_MS + 1;
   CHECK_EQ(judge_attempt(a), WifiResult::FAILED);
@@ -115,12 +111,12 @@ static void test_result_names() {
 int main() {
   const std::vector<std::pair<const char *, std::function<void()>>> tests = {
       {"address_means_connected", test_address_means_connected},
-      {"password_drop_before_joining_is_wrong_password", test_password_drop_before_joining_is_wrong_password},
+      {"one_password_drop_isnt_a_verdict", test_one_password_drop_isnt_a_verdict},
+      {"two_password_drops_before_joining_is_wrong_password", test_two_password_drops_before_joining_is_wrong_password},
       {"joined_means_the_password_worked", test_joined_means_the_password_worked},
       {"joined_without_address_for_too_long", test_joined_without_address_for_too_long},
-      {"dropped_after_joining_is_no_address", test_dropped_after_joining_is_no_address},
-      {"bench_case_auth_expired_after_join", test_bench_case_auth_expired_after_join},
-      {"network_not_found", test_network_not_found},
+      {"bench_case_joined_but_no_address", test_bench_case_joined_but_no_address},
+      {"network_not_found_needs_two", test_network_not_found_needs_two},
       {"other_drops_wait_then_fail", test_other_drops_wait_then_fail},
       {"nothing_happens_then_fail", test_nothing_happens_then_fail},
       {"result_names", test_result_names},

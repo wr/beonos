@@ -49,8 +49,17 @@ struct Group {
   std::vector<Member> members;
 };
 
-// Parses a ZoneGroupTopology#GetZoneGroupState SOAP response.
-bool parse_zone_group_topology(const std::string &soap, std::vector<Group> &out);
+// Parses a ZoneGroupTopology#GetZoneGroupState SOAP response. Takes the
+// response by value and frees it early: topologies are the board's biggest
+// replies, so it keeps at most two copies in memory at once.
+bool parse_zone_group_topology(std::string soap, std::vector<Group> &out);
+
+// Whether a line-in the chosen speaker's room is playing belongs to that room:
+// the chosen speaker's own, or the other half of its stereo pair. Another
+// room's line-in (a CD player on a speaker it's grouped with, say) doesn't
+// count.
+bool is_own_line_in(const std::vector<Group> &groups, const std::string &chosen_uuid,
+                    const std::string &source_uuid);
 
 struct Candidate {
   std::string uuid;

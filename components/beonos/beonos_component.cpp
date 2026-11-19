@@ -15,9 +15,6 @@
 #ifdef USE_API
 #include "esphome/components/api/api_server.h"
 #endif
-#ifdef USE_ESP32_BLE
-#include "esphome/components/esp32_ble/ble.h"
-#endif
 
 #include <esp_event.h>
 #include <esp_wifi_types.h>
@@ -35,6 +32,9 @@ static constexpr uint32_t SEARCH_INTERVAL_MS = 10 * 60 * 1000;
 static constexpr uint32_t MIN_SEARCH_GAP_MS = 60 * 1000;
 static constexpr uint32_t FAILURES_BEFORE_SEARCH = 5;
 static constexpr uint32_t SETUP_GRACE_MS = 1500;
+// With nothing to talk to yet, search again soon (the speaker may still be
+// starting up after a power cut), then less and less often.
+static constexpr uint32_t FIRST_RETRY_MS = 30 * 1000;
 
 static const char *const OPTION_SEARCHING = "Searching\xE2\x80\xA6";
 static const char *const OPTION_CHOOSE = "Choose\xE2\x80\xA6";
@@ -88,6 +88,37 @@ class SetupPageHandler : public AsyncWebHandler {
   BeonosComponent *parent_;
 };
 
+// Copies into a fixed-size saved field, cutting at a character boundary so a
+// long room name with accents doesn't end in half a character.
+static void copy_truncated(char *dst, size_t size, const std::string &src) {
+  size_t n = std::min(src.size(), size - 1);
+  while (n > 0 && n < src.size() && (static_cast<uint8_t>(src[n]) & 0xC0) == 0x80)
+    n--;
+  memcpy(dst, src.data(), n);
+  dst[n] = '\0';
+}
+
+// Four numbers from 0 to 255, separated by dots.
+static bool is_ipv4(const std::string &s) {
+  int parts = 0;
+  size_t i = 0;
+  while (i <= s.size()) {
+    size_t j = i;
+    int value = 0;
+    while (j < s.size() && s[j] >= '0' && s[j] <= '9' && j - i < 3)
+      value = value * 10 + (s[j++] - '0');
+    if (j == i || value > 255)
+      return false;
+    parts++;
+    if (j == s.size())
+      return parts == 4;
+    if (s[j] != '.' || parts == 4)
+      return false;
+    i = j + 1;
+  }
+  return false;
+}
+
 // ── Entities ────────────────────────────────────────────────────────────────
 
 void SpeakerSelect::control(const std::string &value) { this->parent_->on_speaker_picked(value); }
@@ -106,6 +137,12 @@ void BeonosComponent::setup() {
     speaker.room[sizeof(speaker.room) - 1] = '\0';
     this->saved_uuid_ = speaker.uuid;
     this->saved_room_ = speaker.room;
+  }
+  this->line_in_pref_ = global_preferences->make_preference<SavedLineIn>(fnv1_hash("beonos_line_in_v1"), true);
+  SavedLineIn line_in{};
+  if (this->line_in_pref_.load(&line_in)) {
+    line_in.uuid[sizeof(line_in.uuid) - 1] = '\0';
+    this->learned_line_in_ = line_in.uuid;
   }
   SavedAddress address{};
   if (this->address_pref_.load(&address)) {
@@ -126,10 +163,12 @@ void BeonosComponent::setup() {
     wifi::global_wifi_component->set_ap(ap);
   }
 
-  esp_event_handler_instance_register(WIFI_EVENT, WIFI_EVENT_STA_CONNECTED, &BeonosComponent::on_wifi_joined_, this,
-                                      nullptr);
-  esp_event_handler_instance_register(WIFI_EVENT, WIFI_EVENT_STA_DISCONNECTED, &BeonosComponent::on_wifi_disconnected_,
-                                      this, nullptr);
+  if (esp_event_handler_instance_register(WIFI_EVENT, WIFI_EVENT_STA_CONNECTED, &BeonosComponent::on_wifi_joined_,
+                                          this, nullptr) != ESP_OK ||
+      esp_event_handler_instance_register(WIFI_EVENT, WIFI_EVENT_STA_DISCONNECTED,
+                                          &BeonosComponent::on_wifi_disconnected_, this, nullptr) != ESP_OK) {
+    ESP_LOGW(TAG, "Couldn't watch Wi-Fi events; the setup page won't say why a join failed");
+  }
 
   if (web_server_base::global_web_server_base != nullptr) {
     this->setup_handler_ = new SetupPageHandler(this);  // NOLINT(cppcoreguidelines-owning-memory)
@@ -167,6 +206,10 @@ void BeonosComponent::loop() {
     } else if (this->client_.consecutive_failures() >= FAILURES_BEFORE_SEARCH &&
                now - this->last_search_ > MIN_SEARCH_GAP_MS) {
       due = true;  // the speaker may have a new address
+    } else if (this->target_.control_ip.empty() && this->choice_ != sonos::Choice::NEEDS_USER &&
+               now - this->last_search_ > this->retry_delay_ms_) {
+      due = true;  // nothing to talk to yet
+      this->retry_delay_ms_ = std::min(this->retry_delay_ms_ * 2, SEARCH_INTERVAL_MS);
     }
     if (due && !this->client_.is_searching()) {
       this->first_search_done_ = true;
@@ -205,11 +248,7 @@ void BeonosComponent::close_setup_window_() {
   // stays down, ESPHome restarts the board after 15 minutes and setup opens
   // again.
   wifi::global_wifi_component->set_ap_timeout(0);
-#ifdef USE_ESP32_BLE
-  if (esp32_ble::global_ble != nullptr)
-    esp32_ble::global_ble->disable();
-#endif
-  ESP_LOGI(TAG, "Setup window closed; switch the turntable off and on to reopen it");
+  ESP_LOGI(TAG, "Setup window closed; unplug the turntable and plug it back in to reopen it");
 }
 
 // ── Setup page feedback ─────────────────────────────────────────────────────
@@ -223,8 +262,16 @@ void BeonosComponent::on_wifi_joined_(void *arg, const char *base, int32_t id, v
 void BeonosComponent::on_wifi_disconnected_(void *arg, const char *base, int32_t id, void *data) {
   auto *self = static_cast<BeonosComponent *>(arg);
   auto *event = static_cast<wifi_event_sta_disconnected_t *>(data);
-  self->last_disconnect_reason_ = event->reason;
-  self->disconnects_++;
+  switch (classify_drop_(event->reason)) {
+    case setup::Drop::PASSWORD:
+      self->password_drops_++;
+      break;
+    case setup::Drop::NOT_FOUND:
+      self->not_found_drops_++;
+      break;
+    default:
+      break;
+  }
 }
 
 setup::Drop BeonosComponent::classify_drop_(uint16_t reason) {
@@ -249,46 +296,49 @@ void BeonosComponent::on_setup_submitted_(bool has_auto, bool auto_on) {
     this->on_setup_auto_update(auto_on);
   this->setup_attempt_started_ = millis();
   this->joins_at_attempt_ = this->joins_;
-  this->disconnects_at_attempt_ = this->disconnects_;
+  this->password_drops_at_attempt_ = this->password_drops_;
+  this->not_found_drops_at_attempt_ = this->not_found_drops_;
   this->joined_since_attempt_ = false;
   this->setup_result_ = static_cast<uint8_t>(setup::WifiResult::CONNECTING);
 }
 
 void BeonosComponent::update_setup_wifi_state_() {
-  if (this->setup_result_ != static_cast<uint8_t>(setup::WifiResult::CONNECTING))
+  // Keeps judging after a verdict, until the board is on: the page goes on
+  // listening in the background, so a join after an error still shows.
+  const uint8_t current = this->setup_result_;
+  if (current == SETUP_IDLE || current == static_cast<uint8_t>(setup::WifiResult::CONNECTED))
     return;
   const uint32_t now = millis();
   const uint32_t elapsed = now - this->setup_attempt_started_;
   const uint32_t joins = this->joins_;
-  const uint32_t disconnects = this->disconnects_;
+  const uint32_t password_drops = this->password_drops_;
+  const uint32_t not_found_drops = this->not_found_drops_;
   // Ignore the first moment: an attempt with the old details may still be
   // finishing when the new ones are saved.
   if (elapsed <= SETUP_GRACE_MS) {
     this->joins_at_attempt_ = joins;
-    this->disconnects_at_attempt_ = disconnects;
+    this->password_drops_at_attempt_ = password_drops;
+    this->not_found_drops_at_attempt_ = not_found_drops;
     return;
   }
   if (!this->joined_since_attempt_ && joins != this->joins_at_attempt_) {
     this->joined_since_attempt_ = true;
     this->joined_at_ = now;
-    this->disconnects_at_join_ = disconnects;
   }
 
   setup::Attempt attempt;
   attempt.elapsed_ms = elapsed;
   attempt.has_address = wifi::global_wifi_component->is_connected();
   attempt.joined = this->joined_since_attempt_;
-  if (attempt.joined) {
+  if (attempt.joined)
     attempt.joined_for_ms = now - this->joined_at_;
-    attempt.dropped_after_join = disconnects != this->disconnects_at_join_;
-  }
-  if (disconnects != this->disconnects_at_attempt_)
-    attempt.last_drop = classify_drop_(this->last_disconnect_reason_);
+  attempt.password_drops = password_drops - this->password_drops_at_attempt_;
+  attempt.not_found_drops = not_found_drops - this->not_found_drops_at_attempt_;
 
-  const setup::WifiResult result = setup::judge_attempt(attempt);
-  if (result != setup::WifiResult::CONNECTING)
-    ESP_LOGI(TAG, "Setup page: Wi-Fi %s", setup::result_name(result));
-  this->setup_result_ = static_cast<uint8_t>(result);
+  const uint8_t result = static_cast<uint8_t>(setup::judge_attempt(attempt));
+  if (result != current && result != static_cast<uint8_t>(setup::WifiResult::CONNECTING))
+    ESP_LOGI(TAG, "Setup page: Wi-Fi %s", setup::result_name(static_cast<setup::WifiResult>(result)));
+  this->setup_result_ = result;
 }
 
 const char *BeonosComponent::setup_wifi_state() const {
@@ -300,22 +350,27 @@ const char *BeonosComponent::setup_wifi_state() const {
 
 void BeonosComponent::apply_search_(const SearchResult &result) {
   this->searched_once_ = true;
-  this->groups_ = result.groups;
+  // A search that found nothing (a missed reply, a speaker restarting) keeps
+  // what the last one knew.
+  if (!result.groups.empty())
+    this->groups_ = result.groups;
 
   if (!this->manual_address_.empty()) {
     this->manual_failed_ = result.manual_uuid.empty();
-    this->candidates_.clear();
     if (!this->manual_failed_) {
       std::string room;
       for (const auto &g : result.groups)
         for (const auto &m : g.members)
           if (m.uuid == result.manual_uuid)
             room = m.room;
+      this->candidates_.clear();
       this->candidates_.push_back(sonos::Candidate{result.manual_uuid, room, this->manual_address_});
-      this->choice_ = sonos::Choice::KEEP_SAVED;
-    } else {
-      this->choice_ = sonos::Choice::NONE_FOUND;
+    } else if (this->candidates_.size() != 1 || this->candidates_[0].ip != this->manual_address_) {
+      // A new address that doesn't answer. A known one that missed one search
+      // keeps its speaker, like the automatic search does.
+      this->candidates_.clear();
     }
+    this->choice_ = this->candidates_.empty() ? sonos::Choice::NONE_FOUND : sonos::Choice::KEEP_SAVED;
   } else {
     this->manual_failed_ = false;
     this->candidates_ = sonos::line_in_candidates(result.groups, result.devices);
@@ -337,10 +392,23 @@ void BeonosComponent::apply_search_(const SearchResult &result) {
   this->apply_choice_();
 }
 
+std::string BeonosComponent::chosen_uuid_() const {
+  if (this->manual_address_.empty())
+    return this->saved_uuid_;
+  return this->candidates_.empty() ? std::string() : this->candidates_[0].uuid;
+}
+
+void BeonosComponent::set_learned_line_in_(const std::string &uuid) {
+  if (uuid == this->learned_line_in_)
+    return;
+  this->learned_line_in_ = uuid;
+  SavedLineIn saved{};
+  copy_truncated(saved.uuid, sizeof(saved.uuid), uuid);
+  this->line_in_pref_.save(&saved);
+}
+
 void BeonosComponent::apply_choice_() {
-  std::string chosen = this->manual_address_.empty()
-                           ? this->saved_uuid_
-                           : (this->candidates_.empty() ? std::string() : this->candidates_[0].uuid);
+  const std::string chosen = this->chosen_uuid_();
   sonos::Target target;
   if (!chosen.empty() && sonos::resolve_target(this->groups_, chosen, target)) {
     this->target_ = target;
@@ -352,22 +420,15 @@ void BeonosComponent::apply_choice_() {
     this->target_ = sonos::Target{};
   }
 
-  // A learned line-in (another member of the chosen speaker's pair or group)
+  // A learned line-in (the other half of the chosen speaker's stereo pair)
   // wins over the chosen speaker's own one.
   std::string line_in = this->target_.line_in_uuid;
-  if (!this->learned_line_in_.empty()) {
-    for (const auto &g : this->groups_) {
-      bool has_chosen = false, has_learned = false;
-      for (const auto &m : g.members) {
-        has_chosen |= m.uuid == chosen;
-        has_learned |= m.uuid == this->learned_line_in_;
-      }
-      if (has_chosen && has_learned)
-        line_in = this->learned_line_in_;
-    }
-  }
+  if (!this->learned_line_in_.empty() && sonos::is_own_line_in(this->groups_, chosen, this->learned_line_in_))
+    line_in = this->learned_line_in_;
   this->client_.set_target(this->target_.control_ip, line_in);
 
+  if (!this->target_.control_ip.empty())
+    this->retry_delay_ms_ = FIRST_RETRY_MS;
   if (this->target_.control_ip.empty()) {
     this->reachable_ = false;
     if (this->playing_) {
@@ -384,9 +445,13 @@ void BeonosComponent::apply_choice_() {
 
   // Status line.
   if (!this->manual_address_.empty()) {
-    this->publish_status_(this->manual_failed_ ? "No Sonos speaker answers at " + this->manual_address_ + "."
-                                               : "Using " + this->candidates_[0].room + " at " +
-                                                     this->manual_address_ + ".");
+    if (this->candidates_.empty())
+      this->publish_status_("No Sonos speaker answers at " + this->manual_address_ + ".");
+    else if (this->manual_failed_ && !this->reachable_)
+      this->publish_status_(this->candidates_[0].room + " at " + this->manual_address_ +
+                            " isn't answering. Beonos keeps trying.");
+    else
+      this->publish_status_("Using " + this->candidates_[0].room + " at " + this->manual_address_ + ".");
   } else if (!this->saved_uuid_.empty()) {
     bool seen = std::any_of(this->candidates_.begin(), this->candidates_.end(),
                             [this](const sonos::Candidate &c) { return c.uuid == this->saved_uuid_; });
@@ -405,7 +470,10 @@ void BeonosComponent::apply_poll_(const PollResult &result) {
   if (!result.ok) {
     // Keep the last known state: a network blip must not look like Sonos
     // pausing, which would stop the record.
-    if (was_reachable && !this->saved_room_.empty() && this->manual_address_.empty())
+    if (was_reachable && !this->manual_address_.empty() && !this->candidates_.empty())
+      this->publish_status_(this->candidates_[0].room + " at " + this->manual_address_ +
+                            " isn't answering. Beonos keeps trying.");
+    else if (was_reachable && !this->saved_room_.empty() && this->manual_address_.empty())
       this->publish_status_(this->saved_room_ + " isn't answering. Beonos keeps trying.");
     return;
   }
@@ -423,10 +491,12 @@ void BeonosComponent::apply_poll_(const PollResult &result) {
       this->uri_sensor_->publish_state(result.current_uri);
 
     // Someone chose a line-in in the Sonos app: if it belongs to the chosen
-    // speaker's pair or group, that's where the turntable is plugged in.
-    std::string source = sonos::line_in_source(result.current_uri);
-    if (!source.empty() && source != this->learned_line_in_) {
-      this->learned_line_in_ = source;
+    // speaker's room (its own, or its stereo pair's other half), that's where
+    // the turntable is plugged in.
+    const std::string source = sonos::line_in_source(result.current_uri);
+    if (!source.empty() && source != this->learned_line_in_ &&
+        sonos::is_own_line_in(this->groups_, this->chosen_uuid_(), source)) {
+      this->set_learned_line_in_(source);
       this->apply_choice_();
     }
     // The polled speaker now follows another room: find the new leader.
@@ -437,8 +507,15 @@ void BeonosComponent::apply_poll_(const PollResult &result) {
     }
   }
 
-  bool playing = result.transport_state == "PLAYING";
-  bool line_in = sonos::is_line_in_uri(result.current_uri);
+  // Just after Play the speaker reports TRANSITIONING for a moment. That's
+  // neither playing nor paused, so the last state stands.
+  const bool playing =
+      result.transport_state == "TRANSITIONING" ? this->playing_ : result.transport_state == "PLAYING";
+  // Only the turntable's line-in counts, not another room's.
+  const std::string source = sonos::line_in_source(result.current_uri);
+  const bool line_in = sonos::is_line_in_uri(result.current_uri) && !source.empty() &&
+                       (source == this->learned_line_in_ ||
+                        sonos::is_own_line_in(this->groups_, this->chosen_uuid_(), source));
   if (line_in != this->line_in_) {
     this->line_in_ = line_in;
     if (this->line_in_sensor_ != nullptr)
@@ -498,6 +575,8 @@ void BeonosComponent::rebuild_options_() {
       selected = i;
 
   const bool changed = labels != this->option_labels_;
+  // The select points into the old labels until set_options() below.
+  std::vector<std::string> old_labels = std::move(this->option_labels_);
   this->option_labels_ = std::move(labels);
   this->option_uuids_ = std::move(uuids);
   FixedVector<const char *> options;
@@ -534,7 +613,7 @@ void BeonosComponent::on_speaker_picked(const std::string &room) {
       break;  // a placeholder, or the address box decides
     ESP_LOGI(TAG, "Speaker chosen: %s", room.c_str());
     this->save_speaker_(this->option_uuids_[i], room);
-    this->learned_line_in_.clear();
+    this->set_learned_line_in_("");
     this->rebuild_options_();
     this->apply_choice_();
     return;
@@ -545,9 +624,7 @@ void BeonosComponent::on_speaker_picked(const std::string &room) {
 void BeonosComponent::on_manual_address(const std::string &address) {
   std::string a = address;
   a.erase(std::remove_if(a.begin(), a.end(), [](char c) { return c == ' '; }), a.end());
-  bool valid = a.empty() || (a.size() < sizeof(SavedAddress::address) &&
-                             std::all_of(a.begin(), a.end(), [](char c) { return (c >= '0' && c <= '9') || c == '.'; }) &&
-                             std::count(a.begin(), a.end(), '.') == 3);
+  bool valid = a.empty() || (a.size() < sizeof(SavedAddress::address) && is_ipv4(a));
   if (!valid) {
     ESP_LOGW(TAG, "Ignoring speaker address '%s'", address.c_str());
     if (this->manual_address_text_ != nullptr)
@@ -560,7 +637,7 @@ void BeonosComponent::on_manual_address(const std::string &address) {
   this->address_pref_.save(&saved);
   if (this->manual_address_text_ != nullptr)
     this->manual_address_text_->publish_state(a);
-  this->learned_line_in_.clear();
+  this->set_learned_line_in_("");
   this->search_now();
 }
 
@@ -582,8 +659,8 @@ void BeonosComponent::save_speaker_(const std::string &uuid, const std::string &
   this->saved_uuid_ = uuid;
   this->saved_room_ = room;
   SavedSpeaker saved{};
-  strncpy(saved.uuid, uuid.c_str(), sizeof(saved.uuid) - 1);
-  strncpy(saved.room, room.c_str(), sizeof(saved.room) - 1);
+  copy_truncated(saved.uuid, sizeof(saved.uuid), uuid);
+  copy_truncated(saved.room, sizeof(saved.room), room);
   this->speaker_pref_.save(&saved);
 }
 

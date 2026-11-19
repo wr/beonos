@@ -64,6 +64,18 @@ button:
     name: Reset
     entity_category: config
 
+globals:
+  # The last version installed automatically, and when: one that failed is
+  # tried again only after 6 hours, so a broken release can't stall the board
+  # every 5 minutes.
+  - id: auto_update_version
+    type: std::string
+    restore_value: false
+  - id: auto_update_at
+    type: uint32_t
+    restore_value: false
+    initial_value: "0"
+
 interval:
   # Install updates by themselves, but never while a record could be playing.
   - interval: 5min
@@ -75,7 +87,13 @@ interval:
               - lambda: "return id(firmware).state == update::UPDATE_STATE_AVAILABLE;"
               - binary_sensor.is_off: turntable_on
               - binary_sensor.is_off: turntable_playing
+              - lambda: |-
+                  return id(firmware).update_info.latest_version != id(auto_update_version) ||
+                         millis() - id(auto_update_at) > 6UL * 60 * 60 * 1000;
           then:
+            - lambda: |-
+                id(auto_update_version) = id(firmware).update_info.latest_version;
+                id(auto_update_at) = millis();
             - logger.log:
                 format: "Installing firmware update (turntable is off)"
                 level: INFO

@@ -57,10 +57,16 @@ input[type=text],input[type=password]{width:100%;padding:12px;font:inherit;color
 <p>Beonos joined <strong class="ssidname"></strong>. Your phone will drop off this setup network in a moment, so switch it back to your usual Wi-Fi.</p>
 <p>To change settings later, open this address on the same Wi-Fi:<br><span class="address" id="addr2"></span></p>
 </section>
+<section id="lost" hidden>
+<h1>Your phone left the setup network</h1>
+<p>That usually means Beonos joined <strong class="ssidname"></strong> and closed its setup network.</p>
+<p>To check, switch your phone back to your usual Wi-Fi and open:<br><span class="address" id="addr3"></span></p>
+<p class="muted">If <strong>Beonos Setup</strong> is still in your Wi-Fi list, join it again to see what went wrong.</p>
+</section>
 <script>
 (function(){
 var list=document.getElementById('list'),other=document.getElementById('other'),pw=document.getElementById('pw'),
-ssidIn=document.getElementById('ssid'),pskIn=document.getElementById('psk'),go=document.getElementById('go'),chosen=null;
+ssidIn=document.getElementById('ssid'),pskIn=document.getElementById('psk'),go=document.getElementById('go'),chosen=null,run=0;
 function el(t,c){var e=document.createElement(t);if(c)e.textContent=c;return e}
 function bars(r){return r>-60?'▂▄▆':r>-72?'▂▄':'▂'}
 function pick(btn,ap){
@@ -73,43 +79,62 @@ function row(text,right,ap){
  b.appendChild(el('span',text));if(right)b.appendChild(el('span',right));
  b.onclick=function(){pick(b,ap)};li.appendChild(b);list.appendChild(li);
 }
-function address(name){var a='http://'+name+'.local';document.getElementById('addr1').textContent=a;document.getElementById('addr2').textContent=a}
-fetch('/beonos.json').then(function(r){return r.json()}).then(function(j){
+function address(name){var a='http://'+name+'.local';['addr1','addr2','addr3'].forEach(function(i){document.getElementById(i).textContent=a})}
+// Status from the board. A request that hangs counts as failed after 4 s.
+function status(){
+ var c=typeof AbortController!=='undefined'?new AbortController():null,t=setTimeout(function(){if(c)c.abort()},4000);
+ return fetch('/beonos.json',{cache:'no-store',signal:c?c.signal:undefined}).then(function(r){clearTimeout(t);return r.json()},function(e){clearTimeout(t);throw e});
+}
+function message(state,ssid){
+ var n=ssid||'your network';
+ if(state==='wrong_password')return 'Beonos couldn’t join '+n+': the password was rejected. Check it and try again.';
+ if(state==='not_found')return 'Beonos can’t find '+n+'. It needs a 2.4 GHz network within reach.';
+ if(state==='no_address')return 'Beonos joined '+n+', but your router didn’t give it an IP address. Restart your router or check its settings, then try again.';
+ if(state==='failed')return 'Beonos couldn’t join '+n+'. Check the password and try again.';
+ return '';
+}
+function show(id){['form','wait','done','lost'].forEach(function(s){document.getElementById(s).hidden=s!==id})}
+function banner(msg){var e=document.getElementById('err');e.textContent=msg;e.hidden=false}
+function fail(msg){banner(msg);show('form');go.disabled=false;(pw.hidden?go:pskIn).focus()}
+status().then(function(j){
  if(j.auto_update_option){document.getElementById('autowrap').hidden=false;document.getElementById('auto').checked=!!j.auto_update}
+ // Back on the page after an attempt that went wrong: say what happened.
+ var m=message(j.wifi,null);if(m)banner(m);
 }).catch(function(){});
 fetch('/config.json').then(function(r){return r.json()}).then(function(j){
  address(j.name);list.textContent='';
- var seen={};(j.aps||[]).filter(function(a){return a&&a.ssid}).sort(function(a,b){return b.rssi-a.rssi}).forEach(function(a){
+ var seen=Object.create(null);(j.aps||[]).filter(function(a){return a&&a.ssid}).sort(function(a,b){return b.rssi-a.rssi}).forEach(function(a){
   if(seen[a.ssid])return;seen[a.ssid]=1;row(a.ssid,(a.lock?'🔒 ':'')+bars(a.rssi),a);
  });
  row('Other network…','',null);
 }).catch(function(){list.textContent='';row('Other network…','',null)});
 document.getElementById('showpw').onchange=function(){pskIn.type=this.checked?'text':'password'};
-function show(id){['form','wait','done'].forEach(function(s){document.getElementById(s).hidden=s!==id})}
-function fail(msg){var e=document.getElementById('err');e.textContent=msg;e.hidden=false;show('form');go.disabled=false;(pw.hidden?go:pskIn).focus()}
-function watch(ssid,started,misses){
+// After an error the page keeps listening, so a join a moment later still
+// shows. The setup network closes the moment Beonos joins, so losing it
+// usually means it worked, but the page doesn't claim so.
+function watch(id,ssid,started,misses,quiet){
  setTimeout(function(){
-  fetch('/beonos.json',{cache:'no-store'}).then(function(r){return r.json()}).then(function(j){
+  if(id!==run)return;
+  status().then(function(j){
+   if(id!==run)return;
    if(j.wifi==='connected')return show('done');
-   if(j.wifi==='wrong_password')return fail('Beonos couldn\u2019t join '+ssid+': the password was rejected. Check it and try again.');
-   if(j.wifi==='not_found')return fail('Beonos can\u2019t find '+ssid+'. It needs a 2.4\u00a0GHz network within reach.');
-   if(j.wifi==='no_address')return fail('Beonos joined '+ssid+', but your router didn\u2019t give it an IP address. Restart your router or check its settings, then try again.');
-   if(j.wifi==='failed'||Date.now()-started>60000)return fail('Beonos couldn\u2019t join '+ssid+'. Check the password and try again.');
-   watch(ssid,started,0);
+   var m=message(j.wifi,ssid);
+   if(!quiet&&(m||Date.now()-started>60000)){fail(m||message('failed',ssid));quiet=true}
+   watch(id,ssid,started,0,quiet);
   }).catch(function(){
-   // The setup network goes away once Beonos has joined.
-   if(misses>=2)return show('done');
-   watch(ssid,started,misses+1);
+   if(id!==run)return;
+   if(misses>=2)return show('lost');
+   watch(id,ssid,started,misses+1,quiet);
   });
- },1500);
+ },quiet?3000:1500);
 }
 go.onclick=function(){
  var ssid=chosen?chosen.ssid:ssidIn.value.trim();if(!ssid){ssidIn.focus();return}
  var auto=document.getElementById('auto'),q='ssid='+encodeURIComponent(ssid)+'&psk='+encodeURIComponent(pw.hidden?'':pskIn.value)+
   (document.getElementById('autowrap').hidden?'':'&auto='+(auto.checked?'1':'0'));
- go.disabled=true;document.getElementById('err').hidden=true;
+ var id=++run;go.disabled=true;document.getElementById('err').hidden=true;
  Array.prototype.forEach.call(document.querySelectorAll('.ssidname'),function(n){n.textContent=ssid});
- fetch('/wifisave?'+q).then(function(){show('wait');watch(ssid,Date.now(),0)}).catch(function(){go.disabled=false});
+ fetch('/wifisave?'+q).then(function(){show('wait');watch(id,ssid,Date.now(),0,false)}).catch(function(){go.disabled=false});
 };
 })();
 </script></main></body></html>

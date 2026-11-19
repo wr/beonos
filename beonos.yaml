@@ -2,7 +2,7 @@
 # Seeed XIAO ESP32-C6 on the Beonos board.
 #
 # This is the core configuration: what the board does. Kits ship with
-# beonos.factory.yaml, which adds setup over Bluetooth and USB, automatic
+# beonos.factory.yaml, which adds setup over USB, automatic
 # updates and a Reset button on top of this file. If you adopt the board into
 # Home Assistant's ESPHome add-on, this is the file you get.
 #

@@ -21,10 +21,11 @@ static constexpr uint32_t POLL_INTERVAL_MS = 1000;
 static constexpr uint32_t MAX_BACKOFF_MS = 60000;
 static constexpr int HTTP_TIMEOUT_MS = 2000;
 static constexpr size_t MAX_DESCRIPTION_BYTES = 32 * 1024;
-static constexpr size_t MAX_TOPOLOGY_BYTES = 64 * 1024;
+static constexpr size_t MAX_TOPOLOGY_BYTES = 48 * 1024;
 static constexpr size_t MAX_STATUS_BYTES = 8 * 1024;
 static constexpr size_t MAX_SPEAKERS = 32;
-static constexpr size_t MAX_QUEUED_COMMANDS = 4;
+// A home can have more than one Sonos system (an S1 and an S2 one, say).
+static constexpr size_t MAX_HOUSEHOLDS = 3;
 static constexpr uint32_t TASK_STACK_BYTES = 8192;
 
 static const char *const AV_TRANSPORT_PATH = "/MediaRenderer/AVTransport/Control";
@@ -63,12 +64,7 @@ void SonosClient::request_search(const std::string &manual_ip) {
 void SonosClient::send(Command command) {
   {
     std::lock_guard<std::mutex> lock(this->mutex_);
-    // Pressing the same thing twice before it went out is one press.
-    if (std::find(this->commands_.begin(), this->commands_.end(), command) == this->commands_.end()) {
-      if (this->commands_.size() >= MAX_QUEUED_COMMANDS)
-        this->commands_.pop_front();
-      this->commands_.push_back(command);
-    }
+    this->commands_.push(command, now_ms());
   }
   if (this->task_ != nullptr)
     xTaskNotifyGive(this->task_);
@@ -100,8 +96,11 @@ void SonosClient::run_() {
     // Sleep until there's work or the next poll is due.
     uint32_t wait_ms = 200;
     ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(wait_ms));
-    if (!this->network_up_)
+    if (!this->network_up_) {
+      std::lock_guard<std::mutex> lock(this->mutex_);
+      this->commands_.drop_expired(now_ms());
       continue;
+    }
 
     bool has_command = false, search = false, poll_now = false;
     Command command = Command::PLAY;
@@ -110,9 +109,9 @@ void SonosClient::run_() {
       std::lock_guard<std::mutex> lock(this->mutex_);
       ip = this->control_ip_;
       line_in_uuid = this->line_in_uuid_;
-      if (!this->commands_.empty() && !ip.empty()) {
-        command = this->commands_.front();
-        this->commands_.pop_front();
+      if (ip.empty())
+        this->commands_.drop_expired(now_ms());
+      if (!ip.empty() && this->commands_.pop(now_ms(), command)) {
         has_command = true;
       } else if (this->search_requested_) {
         search = true;
@@ -125,14 +124,15 @@ void SonosClient::run_() {
         this->target_changed_ = false;
         this->backoff_ms_ = 0;
         this->failures_ = 0;
-        this->next_poll_ms_ = 0;
+        this->next_poll_ms_ = now_ms();
       }
     }
 
     if (has_command) {
       this->do_command_(command, ip, line_in_uuid);
-      // Read the new state back straight away.
-      this->next_poll_ms_ = 0;
+      // Read the new state back straight away. (Due now, not at 0: the
+      // signed comparison below would read 0 as the future after 24.9 days.)
+      this->next_poll_ms_ = now_ms();
       continue;
     }
     if (search) {
@@ -230,14 +230,35 @@ void SonosClient::do_search_(const std::string &manual_ip) {
     ESP_LOGI(TAG, "%u speaker(s) answered", static_cast<unsigned>(ips.size()));
   }
 
-  // One speaker's topology describes the whole household.
-  bool have_topology = false;
+  // One speaker's topology describes its whole household. Read one from each
+  // household: a speaker that isn't in any topology read so far belongs to
+  // another one.
+  std::vector<std::string> covered;
+  size_t households = 0;
   for (const auto &ip : ips) {
-    if (this->fetch_topology_(ip, result.groups)) {
-      have_topology = true;
+    if (households >= MAX_HOUSEHOLDS)
       break;
+    if (std::find(covered.begin(), covered.end(), ip) != covered.end())
+      continue;
+    std::vector<sonos::Group> groups;
+    if (!this->fetch_topology_(ip, groups))
+      continue;
+    households++;
+    covered.push_back(ip);
+    for (auto &group : groups) {
+      for (const auto &m : group.members)
+        if (!m.ip.empty())
+          covered.push_back(m.ip);
+      bool known = std::any_of(result.groups.begin(), result.groups.end(), [&group](const sonos::Group &g) {
+        return g.coordinator_uuid == group.coordinator_uuid;
+      });
+      if (!known)
+        result.groups.push_back(std::move(group));
     }
   }
+  const bool have_topology = households > 0;
+  if (households > 1)
+    ESP_LOGI(TAG, "Found %u Sonos systems", static_cast<unsigned>(households));
 
   if (have_topology) {
     size_t fetched = 0;
@@ -349,7 +370,7 @@ bool SonosClient::fetch_topology_(const std::string &ip, std::vector<sonos::Grou
   std::string response;
   if (!this->soap_(ip, TOPOLOGY_PATH, TOPOLOGY, "GetZoneGroupState", "", response, MAX_TOPOLOGY_BYTES))
     return false;
-  return sonos::parse_zone_group_topology(response, out);
+  return sonos::parse_zone_group_topology(std::move(response), out);
 }
 
 bool SonosClient::soap_(const std::string &ip, const char *path, const char *service, const char *action,

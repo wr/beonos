@@ -25,3 +25,4 @@ build_and_run() {
 
 build_and_run test_sonos_parse sonos_parse.cpp
 build_and_run test_setup_wifi setup_wifi.cpp
+build_and_run test_command_queue command_queue.cpp

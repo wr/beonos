@@ -99,7 +99,7 @@ Every pre-soldered kit comes with the firmware installed. It's built on [ESPHome
 
 Beonos then looks for a Sonos speaker with a line-in and uses it. If you have more than one, choose yours under **Sonos speaker** on the board's page. If it finds none, check that UPnP is on in the Sonos app (Account > Privacy & Security).
 
-**The setup network only stays open for 15 minutes** after you switch the turntable on, once Beonos is on your Wi-Fi, so nobody nearby can change its Wi-Fi later. To move it to a new Wi-Fi network, switch the turntable off and on somewhere it can't reach the old one, or press **Reset** on the board's page.
+**The setup network only stays open for 15 minutes** after you plug the turntable in, once Beonos is on your Wi-Fi, so nobody nearby can change its Wi-Fi later. To move it to a new Wi-Fi network, unplug the turntable and plug it back in somewhere it can't reach the old one, or press **Reset** on the board's page.
 
 ### The board's page
 

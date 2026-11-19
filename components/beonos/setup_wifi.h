@@ -31,14 +31,18 @@ enum class WifiResult : uint8_t {
 };
 
 // What the board has seen since the setup page saved new Wi-Fi details.
+// One failed attempt proves little (a router can time out a correct
+// password once), so a verdict about the password or the network needs two.
 struct Attempt {
-  uint32_t elapsed_ms{0};          // since the save
-  bool has_address{false};         // on the network with an IP address
-  bool joined{false};              // the router accepted the password at least once
-  uint32_t joined_for_ms{0};       // since the first time it did
-  bool dropped_after_join{false};  // and the board left the network after that
-  Drop last_drop{Drop::NONE};      // why the last attempt ended, if one did
+  uint32_t elapsed_ms{0};       // since the save
+  bool has_address{false};      // on the network with an IP address
+  bool joined{false};           // the router accepted the password at least once
+  uint32_t joined_for_ms{0};    // since the first time it did
+  uint32_t password_drops{0};   // attempts that ended as Drop::PASSWORD
+  uint32_t not_found_drops{0};  // attempts that ended as Drop::NOT_FOUND
 };
+
+constexpr uint32_t DROPS_FOR_VERDICT = 2;
 
 // Getting an address normally takes a second or two after joining.
 constexpr uint32_t NO_ADDRESS_AFTER_MS = 20000;

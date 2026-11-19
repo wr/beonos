@@ -9,13 +9,11 @@ WifiResult judge_attempt(const Attempt &attempt) {
     return WifiResult::CONNECTED;
   if (attempt.joined) {
     // The password is right, whatever the drops look like.
-    if (attempt.dropped_after_join || attempt.joined_for_ms > NO_ADDRESS_AFTER_MS)
-      return WifiResult::NO_ADDRESS;
-    return WifiResult::CONNECTING;
+    return attempt.joined_for_ms > NO_ADDRESS_AFTER_MS ? WifiResult::NO_ADDRESS : WifiResult::CONNECTING;
   }
-  if (attempt.last_drop == Drop::PASSWORD)
+  if (attempt.password_drops >= DROPS_FOR_VERDICT)
     return WifiResult::WRONG_PASSWORD;
-  if (attempt.last_drop == Drop::NOT_FOUND)
+  if (attempt.not_found_drops >= DROPS_FOR_VERDICT)
     return WifiResult::NOT_FOUND;
   if (attempt.elapsed_ms > GIVE_UP_AFTER_MS)
     return WifiResult::FAILED;

@@ -196,13 +196,15 @@ bool parse_device_description(const std::string &xml, DeviceInfo &out) {
   return true;
 }
 
-bool parse_zone_group_topology(const std::string &soap, std::vector<Group> &out) {
+bool parse_zone_group_topology(std::string soap, std::vector<Group> &out) {
   std::string escaped;
   if (!element_text(soap, "ZoneGroupState", escaped))
     return false;
+  std::string().swap(soap);
   // The topology travels escaped inside the SOAP body. After one unescape its
   // attribute values are still entity-encoded, so '>' only ends tags.
   const std::string xml = xml_unescape(escaped);
+  std::string().swap(escaped);
   if (xml.find("</ZoneGroups>") == std::string::npos)
     return false;
 
@@ -256,6 +258,28 @@ std::vector<Candidate> line_in_candidates(const std::vector<Group> &groups,
     return a.room != b.room ? a.room < b.room : a.uuid < b.uuid;
   });
   return out;
+}
+
+bool is_own_line_in(const std::vector<Group> &groups, const std::string &chosen_uuid,
+                    const std::string &source_uuid) {
+  if (source_uuid.empty() || chosen_uuid.empty())
+    return false;
+  if (source_uuid == chosen_uuid)
+    return true;
+  for (const auto &group : groups) {
+    const Member *chosen = nullptr;
+    const Member *source = nullptr;
+    for (const auto &m : group.members) {
+      if (m.uuid == chosen_uuid)
+        chosen = &m;
+      if (m.uuid == source_uuid)
+        source = &m;
+    }
+    // The two halves of a stereo pair are one room in one group.
+    if (chosen != nullptr && source != nullptr && !source->ht_satellite && source->room == chosen->room)
+      return true;
+  }
+  return false;
 }
 
 bool resolve_target(const std::vector<Group> &groups, const std::string &chosen_uuid, Target &out) {

@@ -20,11 +20,10 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 
+#include "command_queue.h"
 #include "sonos_parse.h"
 
 namespace beonos {
-
-enum class Command : uint8_t { PLAY, PAUSE, SWITCH_TO_LINE_IN };
 
 struct SearchResult {
   // At least one speaker answered.
@@ -83,7 +82,7 @@ class SonosClient {
   std::string line_in_uuid_;
   bool search_requested_{false};
   std::string search_manual_ip_;
-  std::deque<Command> commands_;
+  CommandQueue commands_;
   bool poll_now_{false};
   bool target_changed_{false};
 

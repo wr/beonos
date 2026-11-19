@@ -187,6 +187,34 @@ static void test_topology_stereo_pair_one_room() {
   }
 }
 
+static void test_own_line_in_pair_partner_counts_other_room_doesnt() {
+  // The Den pair is grouped with the Kitchen, which has a CD player on its
+  // line-in. The turntable is on the Den pair.
+  std::string pair = "ChannelMapSet=\"RINCON_L:LF,LF;RINCON_R:RF,RF\"";
+  std::string xml = topology_soap(group(
+      "RINCON_L", member("RINCON_L", "192.168.1.30", "Den", pair) +
+                      member("RINCON_R", "192.168.1.31", "Den", pair + " Invisible=\"1\"") +
+                      member("RINCON_K", "192.168.1.32", "Kitchen")));
+  std::vector<Group> groups;
+  CHECK(parse_zone_group_topology(xml, groups));
+  CHECK(is_own_line_in(groups, "RINCON_L", "RINCON_L"));
+  CHECK(is_own_line_in(groups, "RINCON_L", "RINCON_R"));   // the other half of the pair
+  CHECK(!is_own_line_in(groups, "RINCON_L", "RINCON_K"));  // another room's line-in
+  CHECK(!is_own_line_in(groups, "RINCON_L", "RINCON_X"));  // not in the household
+  CHECK(!is_own_line_in(groups, "RINCON_L", ""));
+  CHECK(!is_own_line_in({}, "RINCON_L", "RINCON_R"));      // nothing known yet: only exact
+}
+
+static void test_own_line_in_surround_doesnt_count() {
+  std::string xml = topology_soap(
+      group("RINCON_ARC",
+            member("RINCON_ARC", "192.168.1.40", "Living Room", "",
+                   satellite("RINCON_E1", "192.168.1.41", "Living Room"))));
+  std::vector<Group> groups;
+  CHECK(parse_zone_group_topology(xml, groups));
+  CHECK(!is_own_line_in(groups, "RINCON_ARC", "RINCON_E1"));
+}
+
 static void test_topology_ht_with_era_surrounds_excludes_surrounds() {
   // Arc with two Era 100 surrounds: the Arc has no line-in, and the Eras lose
   // theirs while bonded as surrounds.
@@ -363,6 +391,8 @@ int main() {
       {"description_play5_has_line_in", test_description_play5_has_line_in},
       {"description_beam_no_line_in", test_description_beam_no_line_in},
       {"topology_stereo_pair_one_room", test_topology_stereo_pair_one_room},
+      {"own_line_in_pair_partner_counts_other_room_doesnt", test_own_line_in_pair_partner_counts_other_room_doesnt},
+      {"own_line_in_surround_doesnt_count", test_own_line_in_surround_doesnt_count},
       {"topology_ht_with_era_surrounds_excludes_surrounds", test_topology_ht_with_era_surrounds_excludes_surrounds},
       {"topology_amp_ht_primary_offered", test_topology_amp_ht_primary_offered},
       {"candidates_sorted_and_skip_unknown_devices", test_candidates_sorted_and_skip_unknown_devices},
