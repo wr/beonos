@@ -146,9 +146,12 @@ binary_sensor:
       then:
         - script.execute: react_to_turntable
 
+  # The play signal drives the bridge logic as it is. It can read high with
+  # the deck switched off (seen on an RX 2), so the entity people see is
+  # gated by Turntable On below.
   - platform: gpio
-    name: "Turntable Playing"
     id: turntable_playing
+    internal: true
     pin:
       number: GPIO21
       mode:
@@ -159,6 +162,11 @@ binary_sensor:
     on_state:
       then:
         - script.execute: react_to_turntable
+
+  - platform: template
+    name: "Turntable Playing"
+    id: turntable_playing_shown
+    lambda: "return id(turntable_on).state && id(turntable_playing).state;"
 
 output:
   - platform: gpio
@@ -278,10 +286,17 @@ script:
   - id: react_to_sonos
     mode: queued
     then:
-      # Guard as an if/else wrapper rather than `script.stop: self`.
+      # Guard as an if/else wrapper rather than `script.stop: self`. The
+      # first reading from a speaker (after a restart, or a different speaker
+      # chosen) only sets the starting point: it may have been playing the
+      # turntable's line-in all along, which isn't a change anyone made.
       - if:
           condition:
-            lambda: "return id(system_ready);"
+            lambda: "return id(system_ready) && !id(sonos).is_first_reading();"
+          else:
+            - lambda: |-
+                id(prev_sonos_line_in) = id(sonos_line_in).state;
+                id(prev_sonos_playing) = id(sonos_playing).state;
           then:
             # Capture rising edge of "Sonos picks line-in and starts playing"
             # while the turntable is off. Press Cue, then verify a record actually
