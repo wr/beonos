@@ -246,6 +246,7 @@ void SonosClient::do_search_(const std::string &manual_ip) {
     households++;
     covered.push_back(ip);
     for (auto &group : groups) {
+      group.household = static_cast<int>(households - 1);
       for (const auto &m : group.members)
         if (!m.ip.empty())
           covered.push_back(m.ip);

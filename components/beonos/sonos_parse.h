@@ -31,6 +31,7 @@ struct DeviceInfo {
   std::string room;
   std::string model;
   bool has_line_in{false};  // the speaker offers the AudioIn service
+  int generation{0};        // 1 for S1, 2 for S2, 0 when the speaker doesn't say
 };
 
 // Parses /xml/device_description.xml.
@@ -47,6 +48,7 @@ struct Member {
 struct Group {
   std::string coordinator_uuid;
   std::vector<Member> members;
+  int household{0};  // which Sonos system it belongs to, when the search found more than one
 };
 
 // Parses a ZoneGroupTopology#GetZoneGroupState SOAP response. Takes the
@@ -77,6 +79,14 @@ struct Target {
   std::string control_ip;  // coordinator of the group the chosen speaker is in
   std::string line_in_uuid;
 };
+
+// One line describing every Sonos system found, for the board's "Sonos
+// speakers found" line, e.g. "S2 system. With a line-in: Office. Without:
+// Family Room, Living Room, Roam 2." Stereo pairs and surrounds count as
+// their room. Lists are shortened ("and 4 more") to fit max_len bytes, since
+// Home Assistant drops a state longer than 255 characters.
+std::string found_summary(const std::vector<Group> &groups, const std::map<std::string, DeviceInfo> &devices,
+                          size_t max_len);
 
 // Finds where commands for the chosen speaker go.
 bool resolve_target(const std::vector<Group> &groups, const std::string &chosen_uuid, Target &out);

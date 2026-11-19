@@ -10,6 +10,7 @@
 #pragma once
 
 #include <atomic>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -64,6 +65,7 @@ class BeonosComponent : public esphome::Component {
   void set_speaker_select(SpeakerSelect *s) { this->speaker_select_ = s; }
   void set_manual_address_text(ManualAddressText *t) { this->manual_address_text_ = t; }
   void set_status_sensor(esphome::text_sensor::TextSensor *s) { this->status_sensor_ = s; }
+  void set_found_sensor(esphome::text_sensor::TextSensor *s) { this->found_sensor_ = s; }
   void set_transport_sensor(esphome::text_sensor::TextSensor *s) { this->transport_sensor_ = s; }
   void set_uri_sensor(esphome::text_sensor::TextSensor *s) { this->uri_sensor_ = s; }
   void set_playing_sensor(esphome::binary_sensor::BinarySensor *s) { this->playing_sensor_ = s; }
@@ -120,6 +122,7 @@ class BeonosComponent : public esphome::Component {
   SpeakerSelect *speaker_select_{nullptr};
   ManualAddressText *manual_address_text_{nullptr};
   esphome::text_sensor::TextSensor *status_sensor_{nullptr};
+  esphome::text_sensor::TextSensor *found_sensor_{nullptr};
   esphome::text_sensor::TextSensor *transport_sensor_{nullptr};
   esphome::text_sensor::TextSensor *uri_sensor_{nullptr};
   esphome::binary_sensor::BinarySensor *playing_sensor_{nullptr};
@@ -137,9 +140,12 @@ class BeonosComponent : public esphome::Component {
   // From the last search.
   bool searched_once_{false};
   std::vector<sonos::Group> groups_;
+  std::map<std::string, sonos::DeviceInfo> devices_;
   std::vector<sonos::Candidate> candidates_;
   sonos::Choice choice_{sonos::Choice::NONE_FOUND};
   bool manual_failed_{false};
+  // Room of the speaker at the typed address, when it has no line-in.
+  std::string manual_no_line_in_;
 
   // Room names shown in the select, and the speaker each one means. The
   // select keeps pointers into option_labels_, so it is only replaced

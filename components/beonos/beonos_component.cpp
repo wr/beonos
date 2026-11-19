@@ -35,6 +35,8 @@ static constexpr uint32_t SETUP_GRACE_MS = 1500;
 // With nothing to talk to yet, search again soon (the speaker may still be
 // starting up after a power cut), then less and less often.
 static constexpr uint32_t FIRST_RETRY_MS = 30 * 1000;
+// Home Assistant drops a state longer than 255 characters.
+static constexpr size_t MAX_STATE_BYTES = 255;
 
 static const char *const OPTION_SEARCHING = "Searching\xE2\x80\xA6";
 static const char *const OPTION_CHOOSE = "Choose\xE2\x80\xA6";
@@ -352,11 +354,19 @@ void BeonosComponent::apply_search_(const SearchResult &result) {
   this->searched_once_ = true;
   // A search that found nothing (a missed reply, a speaker restarting) keeps
   // what the last one knew.
-  if (!result.groups.empty())
+  if (!result.groups.empty()) {
     this->groups_ = result.groups;
+    this->devices_ = result.devices;
+  }
+  if (this->found_sensor_ != nullptr) {
+    const std::string found = sonos::found_summary(this->groups_, this->devices_, MAX_STATE_BYTES);
+    if (this->found_sensor_->get_state() != found)
+      this->found_sensor_->publish_state(found);
+  }
 
   if (!this->manual_address_.empty()) {
     this->manual_failed_ = result.manual_uuid.empty();
+    this->manual_no_line_in_.clear();
     if (!this->manual_failed_) {
       std::string room;
       for (const auto &g : result.groups)
@@ -364,7 +374,14 @@ void BeonosComponent::apply_search_(const SearchResult &result) {
           if (m.uuid == result.manual_uuid)
             room = m.room;
       this->candidates_.clear();
-      this->candidates_.push_back(sonos::Candidate{result.manual_uuid, room, this->manual_address_});
+      auto device = result.devices.find(result.manual_uuid);
+      if (device != result.devices.end() && !device->second.has_line_in) {
+        // It answers, but the turntable can't be plugged into it: choosing it
+        // would only make it resume whatever it last played.
+        this->manual_no_line_in_ = room.empty() ? result.manual_uuid : room;
+      } else {
+        this->candidates_.push_back(sonos::Candidate{result.manual_uuid, room, this->manual_address_});
+      }
     } else if (this->candidates_.size() != 1 || this->candidates_[0].ip != this->manual_address_) {
       // A new address that doesn't answer. A known one that missed one search
       // keeps its speaker, like the automatic search does.
@@ -445,7 +462,14 @@ void BeonosComponent::apply_choice_() {
 
   // Status line.
   if (!this->manual_address_.empty()) {
-    if (this->candidates_.empty())
+    if (!this->manual_no_line_in_.empty()) {
+      std::string status = this->manual_no_line_in_ + " has no line-in, so the turntable can't play through it.";
+      auto others = sonos::line_in_candidates(this->groups_, this->devices_);
+      if (!others.empty())
+        status += " Clear this address and choose " + others[0].room + ". To hear records in " +
+                  this->manual_no_line_in_ + " too, group it with " + others[0].room + " in the Sonos app.";
+      this->publish_status_(status);
+    } else if (this->candidates_.empty())
       this->publish_status_("No Sonos speaker answers at " + this->manual_address_ + ".");
     else if (this->manual_failed_ && !this->reachable_)
       this->publish_status_(this->candidates_[0].room + " at " + this->manual_address_ +
@@ -665,8 +689,14 @@ void BeonosComponent::save_speaker_(const std::string &uuid, const std::string &
 }
 
 void BeonosComponent::publish_status_(const std::string &status) {
-  if (this->status_sensor_ != nullptr && this->status_sensor_->get_state() != status)
-    this->status_sensor_->publish_state(status);
+  if (this->status_sensor_ == nullptr)
+    return;
+  // Home Assistant drops a state longer than 255 characters; long room names
+  // could push a status over.
+  char buf[MAX_STATE_BYTES + 1];
+  copy_truncated(buf, sizeof(buf), status);
+  if (this->status_sensor_->get_state() != buf)
+    this->status_sensor_->publish_state(buf);
 }
 
 void BeonosComponent::dump_config() {

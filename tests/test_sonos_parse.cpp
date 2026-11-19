@@ -47,14 +47,16 @@ static const char *SSDP_OTHER =
     "\r\n";
 
 static std::string device_xml(const std::string &uuid, const std::string &room, const std::string &model,
-                              bool line_in) {
+                              bool line_in, int sw_gen = 0) {
   std::string audio_in =
       line_in ? "<service><serviceType>urn:schemas-upnp-org:service:AudioIn:1</serviceType>"
                 "<serviceId>urn:upnp-org:serviceId:AudioIn</serviceId></service>"
               : "";
   return "<?xml version=\"1.0\" encoding=\"utf-8\" ?>"
          "<root xmlns=\"urn:schemas-upnp-org:device-1-0\"><specVersion><major>1</major></specVersion>"
-         "<device><deviceType>urn:schemas-upnp-org:device:ZonePlayer:1</deviceType>"
+         "<device><deviceType>urn:schemas-upnp-org:device:ZonePlayer:1</deviceType>" +
+         (sw_gen ? "<swGen>" + std::to_string(sw_gen) + "</swGen>" : std::string()) +
+         "<friendlyName>x</friendlyName>"
          "<friendlyName>192.168.1.20 - " +
          model + "</friendlyName><manufacturer>Sonos, Inc.</manufacturer><modelName>" + model +
          "</modelName><UDN>uuid:" + uuid + "</UDN><roomName>" + room +
@@ -213,6 +215,100 @@ static void test_own_line_in_surround_doesnt_count() {
   std::vector<Group> groups;
   CHECK(parse_zone_group_topology(xml, groups));
   CHECK(!is_own_line_in(groups, "RINCON_ARC", "RINCON_E1"));
+}
+
+static void test_description_reads_s1_or_s2() {
+  DeviceInfo d;
+  CHECK(parse_device_description(device_xml("RINCON_C", "Office", "Sonos Connect", true, 2), d));
+  CHECK_EQ(d.generation, 2);
+  CHECK(parse_device_description(device_xml("RINCON_C", "Office", "Sonos Connect", true, 1), d));
+  CHECK_EQ(d.generation, 1);
+  CHECK(parse_device_description(device_xml("RINCON_C", "Office", "Sonos Connect", true), d));
+  CHECK_EQ(d.generation, 0);  // not stated
+}
+
+static DeviceInfo devg(const std::string &uuid, const std::string &room, bool line_in, int generation) {
+  DeviceInfo d = dev(uuid, room, line_in);
+  d.generation = generation;
+  return d;
+}
+
+static void test_found_summary_one_system() {
+  // Wells's house on 2026-11-19: a Connect, a Beam with two Play:1
+  // surrounds, a One and a Roam 2, all S2.
+  std::string xml = topology_soap(
+      group("RINCON_C", member("RINCON_C", "192.168.1.54", "Office")) +
+      group("RINCON_B", member("RINCON_B", "192.168.1.93", "Living Room", "",
+                               satellite("RINCON_P1", "192.168.1.19", "Living Room") +
+                                   satellite("RINCON_P2", "192.168.1.20", "Living Room"))) +
+      group("RINCON_O", member("RINCON_O", "192.168.1.48", "Family Room")) +
+      group("RINCON_R", member("RINCON_R", "192.168.1.5", "Roam 2")));
+  std::vector<Group> groups;
+  CHECK(parse_zone_group_topology(xml, groups));
+  std::map<std::string, DeviceInfo> devices = {{"RINCON_C", devg("RINCON_C", "Office", true, 2)},
+                                               {"RINCON_B", devg("RINCON_B", "Living Room", false, 2)},
+                                               {"RINCON_O", devg("RINCON_O", "Family Room", false, 2)},
+                                               {"RINCON_R", devg("RINCON_R", "Roam 2", false, 2)}};
+  CHECK_EQ(found_summary(groups, devices, 255),
+           "S2 system. With a line-in: Office. Without: Family Room, Living Room, Roam 2.");
+}
+
+static void test_found_summary_pair_is_one_room() {
+  std::string pair = "ChannelMapSet=\"RINCON_L:LF,LF;RINCON_R:RF,RF\"";
+  std::string xml = topology_soap(group(
+      "RINCON_L", member("RINCON_L", "192.168.1.30", "Den", pair) +
+                      member("RINCON_R", "192.168.1.31", "Den", pair + " Invisible=\"1\"")));
+  std::vector<Group> groups;
+  CHECK(parse_zone_group_topology(xml, groups));
+  std::map<std::string, DeviceInfo> devices = {{"RINCON_L", devg("RINCON_L", "Den", true, 1)},
+                                               {"RINCON_R", devg("RINCON_R", "Den", true, 1)}};
+  CHECK_EQ(found_summary(groups, devices, 255), "S1 system. With a line-in: Den.");
+}
+
+static void test_found_summary_two_systems_unknown_and_silent() {
+  // Two households (the search tags each group with its household), one
+  // without a stated generation, and one speaker whose description didn't
+  // come back.
+  std::vector<Group> groups;
+  Group a;
+  a.coordinator_uuid = "RINCON_K";
+  a.household = 1;
+  a.members.push_back(Member{"RINCON_K", "Kitchen", "192.168.1.40", false, false});
+  a.members.push_back(Member{"RINCON_D", "Den", "192.168.1.41", false, false});
+  Group b;
+  b.coordinator_uuid = "RINCON_B";
+  b.household = 0;
+  b.members.push_back(Member{"RINCON_B", "Bedroom", "192.168.1.42", false, false});
+  groups.push_back(a);
+  groups.push_back(b);
+  std::map<std::string, DeviceInfo> devices = {{"RINCON_K", devg("RINCON_K", "Kitchen", false, 1)},
+                                               {"RINCON_B", devg("RINCON_B", "Bedroom", false, 0)}};
+  // Systems in order of their first room: Bedroom's, then Den's.
+  CHECK_EQ(found_summary(groups, devices, 255),
+           "Sonos system. Without: Bedroom. S1 system. Without: Kitchen. Not answering: Den.");
+}
+
+static void test_found_summary_nothing() {
+  CHECK_EQ(found_summary({}, {}, 255), "No Sonos speakers found.");
+}
+
+static void test_found_summary_stays_under_limit() {
+  // Home Assistant drops a state longer than 255 characters.
+  std::vector<Group> groups;
+  std::map<std::string, DeviceInfo> devices;
+  for (int i = 0; i < 30; i++) {
+    std::string uuid = "RINCON_" + std::to_string(i);
+    std::string room = "Room with a long name " + std::to_string(10 + i);
+    Group g;
+    g.coordinator_uuid = uuid;
+    g.members.push_back(Member{uuid, room, "192.168.1." + std::to_string(i), false, false});
+    groups.push_back(g);
+    devices[uuid] = devg(uuid, room, i == 0, 2);
+  }
+  std::string s = found_summary(groups, devices, 255);
+  CHECK(s.size() <= 255);
+  CHECK(s.find("S2 system. With a line-in: Room with a long name 10. Without: ") == 0);
+  CHECK(s.find(" more.") != std::string::npos);
 }
 
 static void test_topology_ht_with_era_surrounds_excludes_surrounds() {
@@ -390,6 +486,12 @@ int main() {
       {"ssdp_rejects_other_st", test_ssdp_rejects_other_st},
       {"description_play5_has_line_in", test_description_play5_has_line_in},
       {"description_beam_no_line_in", test_description_beam_no_line_in},
+      {"description_reads_s1_or_s2", test_description_reads_s1_or_s2},
+      {"found_summary_one_system", test_found_summary_one_system},
+      {"found_summary_pair_is_one_room", test_found_summary_pair_is_one_room},
+      {"found_summary_two_systems_unknown_and_silent", test_found_summary_two_systems_unknown_and_silent},
+      {"found_summary_nothing", test_found_summary_nothing},
+      {"found_summary_stays_under_limit", test_found_summary_stays_under_limit},
       {"topology_stereo_pair_one_room", test_topology_stereo_pair_one_room},
       {"own_line_in_pair_partner_counts_other_room_doesnt", test_own_line_in_pair_partner_counts_other_room_doesnt},
       {"own_line_in_surround_doesnt_count", test_own_line_in_surround_doesnt_count},

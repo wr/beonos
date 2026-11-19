@@ -18,6 +18,7 @@ CONF_TRANSPORT_STATE = "transport_state"
 CONF_CURRENT_URI = "current_uri"
 CONF_PLAYING = "playing"
 CONF_LINE_IN = "line_in"
+CONF_SPEAKERS_FOUND = "speakers_found"
 CONF_SETUP_WINDOW = "setup_window"
 CONF_SETUP_SSID_PREFIX = "setup_ssid_prefix"
 CONF_AUTO_UPDATE_SWITCH = "auto_update_switch"
@@ -41,6 +42,7 @@ CONFIG_SCHEMA = cv.Schema(
             ManualAddressText, entity_category="config", icon="mdi:ip-network", mode="TEXT"
         ),
         cv.Required(CONF_STATUS): text_sensor.text_sensor_schema(icon="mdi:speaker-wireless"),
+        cv.Optional(CONF_SPEAKERS_FOUND): text_sensor.text_sensor_schema(icon="mdi:speaker-multiple"),
         cv.Optional(CONF_TRANSPORT_STATE): text_sensor.text_sensor_schema(
             entity_category="diagnostic"
         ),
@@ -73,6 +75,9 @@ async def to_code(config):
 
     sens = await text_sensor.new_text_sensor(config[CONF_STATUS])
     cg.add(var.set_status_sensor(sens))
+    if CONF_SPEAKERS_FOUND in config:
+        sens = await text_sensor.new_text_sensor(config[CONF_SPEAKERS_FOUND])
+        cg.add(var.set_found_sensor(sens))
     if CONF_TRANSPORT_STATE in config:
         sens = await text_sensor.new_text_sensor(config[CONF_TRANSPORT_STATE])
         cg.add(var.set_transport_sensor(sens))

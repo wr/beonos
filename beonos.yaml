@@ -90,6 +90,8 @@ beonos:
     name: "Speaker address (advanced)"
   status:
     name: "Sonos status"
+  speakers_found:
+    name: "Sonos speakers found"
   transport_state:
     name: "Sonos transport state"
   current_uri:

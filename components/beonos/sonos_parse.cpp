@@ -186,6 +186,8 @@ bool parse_device_description(const std::string &xml, DeviceInfo &out) {
   if (!element_text(xml, "UDN", udn) || !element_text(xml, "roomName", room))
     return false;
   element_text(xml, "modelName", model);
+  std::string generation;
+  out.generation = element_text(xml, "swGen", generation) ? std::atoi(generation.c_str()) : 0;
   udn = xml_unescape(udn);
   if (udn.compare(0, 5, "uuid:") == 0)
     udn = udn.substr(5);
@@ -258,6 +260,95 @@ std::vector<Candidate> line_in_candidates(const std::vector<Group> &groups,
     return a.room != b.room ? a.room < b.room : a.uuid < b.uuid;
   });
   return out;
+}
+
+namespace {
+
+struct FoundSystem {
+  int generation{0};
+  std::vector<std::string> with, without, silent;
+  std::string first;  // alphabetically first room, to list systems in a steady order
+};
+
+std::string found_list(const char *prefix, const std::vector<std::string> &names, size_t shown) {
+  if (names.empty())
+    return "";
+  std::string out = prefix;
+  if (shown == 0)
+    return out + std::to_string(names.size()) + (names.size() == 1 ? " speaker." : " speakers.");
+  for (size_t i = 0; i < names.size() && i < shown; i++)
+    out += (i ? ", " : "") + names[i];
+  if (names.size() > shown)
+    out += " and " + std::to_string(names.size() - shown) + " more";
+  return out + ".";
+}
+
+}  // namespace
+
+std::string found_summary(const std::vector<Group> &groups, const std::map<std::string, DeviceInfo> &devices,
+                          size_t max_len) {
+  std::map<int, FoundSystem> systems;
+  for (const auto &group : groups) {
+    FoundSystem &system = systems[group.household];
+    for (const auto &m : group.members) {
+      if (m.invisible || m.ht_satellite || m.uuid.empty())
+        continue;
+      const std::string room = m.room.empty() ? m.uuid : m.room;
+      auto it = devices.find(m.uuid);
+      if (it == devices.end()) {
+        system.silent.push_back(room);
+        continue;
+      }
+      if (system.generation == 0)
+        system.generation = it->second.generation;
+      (it->second.has_line_in ? system.with : system.without).push_back(room);
+    }
+  }
+  std::vector<FoundSystem *> order;
+  size_t most = 0;
+  for (auto &entry : systems) {
+    FoundSystem &s = entry.second;
+    for (auto *list : {&s.with, &s.without, &s.silent}) {
+      std::sort(list->begin(), list->end());
+      if (!list->empty() && (s.first.empty() || list->front() < s.first))
+        s.first = list->front();
+      most = std::max(most, list->size());
+    }
+    if (!s.first.empty())
+      order.push_back(&s);
+  }
+  if (order.empty())
+    return "No Sonos speakers found.";
+  std::sort(order.begin(), order.end(), [](const FoundSystem *a, const FoundSystem *b) { return a->first < b->first; });
+
+  // Speakers with a line-in are the ones that matter, so they're shortened last.
+  auto render = [&order](size_t shown, size_t shown_with) {
+    std::string out;
+    for (const FoundSystem *s : order) {
+      if (!out.empty())
+        out += " ";
+      out += s->generation == 1 ? "S1 system." : s->generation == 2 ? "S2 system." : "Sonos system.";
+      out += found_list(" With a line-in: ", s->with, shown_with);
+      out += found_list(" Without: ", s->without, shown);
+      out += found_list(" Not answering: ", s->silent, shown);
+    }
+    return out;
+  };
+  for (size_t shown = most + 1; shown-- > 0;) {
+    std::string out = render(shown, most);
+    if (out.size() <= max_len)
+      return out;
+  }
+  for (size_t shown_with = most + 1; shown_with-- > 0;) {
+    std::string out = render(0, shown_with);
+    if (out.size() <= max_len)
+      return out;
+  }
+  std::string out = render(0, 0);
+  size_t n = max_len >= 3 ? max_len - 3 : 0;
+  while (n > 0 && (static_cast<unsigned char>(out[n]) & 0xC0) == 0x80)
+    n--;
+  return out.substr(0, n) + "\xE2\x80\xA6";
 }
 
 bool is_own_line_in(const std::vector<Group> &groups, const std::string &chosen_uuid,
