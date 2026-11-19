@@ -44,13 +44,6 @@ esphome:
       # Wait for inputs to settle before bridge logic kicks in, so we don't
       # mistake startup transients for state changes.
       - delay: 3s
-      # Start from what the inputs say now, so the first change after
-      # startup is compared with how things are, not with "off".
-      - lambda: |-
-          id(prev_turntable_on) = id(turntable_on).state;
-          id(prev_turntable_playing) = id(turntable_playing).state;
-          id(prev_sonos_line_in) = id(sonos_line_in).state;
-          id(prev_sonos_playing) = id(sonos_playing).state;
       - globals.set:
           id: system_ready
           value: "true"
