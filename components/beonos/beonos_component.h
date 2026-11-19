@@ -9,6 +9,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include <atomic>
 #include <string>
 #include <vector>
 
@@ -74,10 +75,13 @@ class BeonosComponent : public esphome::Component {
   void on_speaker_picked(const std::string &room);
   void on_manual_address(const std::string &address);
   void on_setup_auto_update(bool on);
-  // Called from the web server's task: hands over to the main loop.
-  void queue_setup_auto_update(bool on) {
-    this->defer([this, on]() { this->on_setup_auto_update(on); });
+  // Called from the web server's task when the setup page saves Wi-Fi:
+  // hands over to the main loop.
+  void queue_setup_submitted(bool has_auto, bool auto_on) {
+    this->defer([this, has_auto, auto_on]() { this->on_setup_submitted_(has_auto, auto_on); });
   }
+  // What the setup page shows after Connect; safe to read from any task.
+  const char *setup_wifi_state() const;
   bool auto_update_option() const { return this->auto_update_switch_ != nullptr; }
   bool auto_update_state() const;
 
@@ -97,6 +101,9 @@ class BeonosComponent : public esphome::Component {
   void publish_status_(const std::string &status);
   void save_speaker_(const std::string &uuid, const std::string &room);
   void close_setup_window_();
+  void on_setup_submitted_(bool has_auto, bool auto_on);
+  void update_setup_wifi_state_();
+  static void on_wifi_disconnected_(void *arg, const char *base, int32_t id, void *data);
 
   SonosClient client_;
   SetupPageHandler *setup_handler_{nullptr};
@@ -143,6 +150,14 @@ class BeonosComponent : public esphome::Component {
   uint32_t network_up_since_{0};
   uint32_t last_search_{0};
   bool first_search_done_{false};
+
+  // Result of the last Wi-Fi save from the setup page.
+  enum SetupWifiState : uint8_t { SETUP_IDLE, SETUP_CONNECTING, SETUP_CONNECTED, SETUP_WRONG_PASSWORD, SETUP_NOT_FOUND, SETUP_FAILED };
+  std::atomic<uint8_t> setup_wifi_state_{SETUP_IDLE};
+  uint32_t setup_attempt_started_{0};
+  uint32_t disconnects_at_attempt_{0};
+  std::atomic<uint32_t> disconnects_{0};
+  std::atomic<uint8_t> last_disconnect_reason_{0};
 
   uint32_t setup_window_ms_{15 * 60 * 1000};
   bool setup_window_closed_{false};

@@ -16,6 +16,9 @@
 #include "esphome/components/esp32_ble/ble.h"
 #endif
 
+#include <esp_event.h>
+#include <esp_wifi_types.h>
+
 #include "setup_page.h"
 
 namespace beonos {
@@ -58,17 +61,16 @@ class SetupPageHandler : public AsyncWebHandler {
     char url_buf[AsyncWebServerRequest::URL_BUF_SIZE];
     StringRef url = request->url_to(url_buf);
     if (url == "/wifisave") {
-      if (request->hasArg("auto")) {
-        bool on = request->arg("auto") == "1";
-        this->parent_->queue_setup_auto_update(on);
-      }
+      bool has_auto = request->hasArg("auto");
+      this->parent_->queue_setup_submitted(has_auto, has_auto && request->arg("auto") == "1");
       captive_portal::global_captive_portal->handle_wifisave(request);
       return;
     }
     if (url == "/beonos.json") {
       std::string json = std::string("{\"auto_update_option\":") +
                          (this->parent_->auto_update_option() ? "true" : "false") +
-                         ",\"auto_update\":" + (this->parent_->auto_update_state() ? "true" : "false") + "}";
+                         ",\"auto_update\":" + (this->parent_->auto_update_state() ? "true" : "false") +
+                         ",\"wifi\":\"" + this->parent_->setup_wifi_state() + "\"}";
       request->send(200, "application/json", json.c_str());
       return;
     }
@@ -119,6 +121,9 @@ void BeonosComponent::setup() {
     ap.set_ssid(this->setup_ssid_prefix_ + " " + suffix);
     wifi::global_wifi_component->set_ap(ap);
   }
+
+  esp_event_handler_instance_register(WIFI_EVENT, WIFI_EVENT_STA_DISCONNECTED, &BeonosComponent::on_wifi_disconnected_,
+                                      this, nullptr);
 
   if (web_server_base::global_web_server_base != nullptr) {
     this->setup_handler_ = new SetupPageHandler(this);  // NOLINT(cppcoreguidelines-owning-memory)
@@ -171,6 +176,8 @@ void BeonosComponent::loop() {
   if (this->client_.take_poll_result(poll))
     this->apply_poll_(poll);
 
+  this->update_setup_wifi_state_();
+
   if (!this->setup_window_closed_ && now > this->setup_window_ms_ && wifi::global_wifi_component != nullptr &&
       wifi::global_wifi_component->has_sta()) {
     this->close_setup_window_();
@@ -194,6 +201,72 @@ void BeonosComponent::close_setup_window_() {
     esp32_ble::global_ble->disable();
 #endif
   ESP_LOGI(TAG, "Setup window closed; switch the turntable off and on to reopen it");
+}
+
+// ── Setup page feedback ─────────────────────────────────────────────────────
+
+void BeonosComponent::on_wifi_disconnected_(void *arg, const char *base, int32_t id, void *data) {
+  auto *self = static_cast<BeonosComponent *>(arg);
+  auto *event = static_cast<wifi_event_sta_disconnected_t *>(data);
+  self->last_disconnect_reason_ = event->reason;
+  self->disconnects_++;
+}
+
+void BeonosComponent::on_setup_submitted_(bool has_auto, bool auto_on) {
+  if (has_auto)
+    this->on_setup_auto_update(auto_on);
+  this->setup_attempt_started_ = millis();
+  this->disconnects_at_attempt_ = this->disconnects_;
+  this->setup_wifi_state_ = SETUP_CONNECTING;
+}
+
+void BeonosComponent::update_setup_wifi_state_() {
+  if (this->setup_wifi_state_ != SETUP_CONNECTING)
+    return;
+  const uint32_t elapsed = millis() - this->setup_attempt_started_;
+  if (wifi::global_wifi_component->is_connected()) {
+    this->setup_wifi_state_ = SETUP_CONNECTED;
+    return;
+  }
+  // Ignore the first moment: an attempt with the old details may still be
+  // finishing when the new ones are saved.
+  if (elapsed > 1500 && this->disconnects_ != this->disconnects_at_attempt_) {
+    switch (this->last_disconnect_reason_) {
+      case WIFI_REASON_AUTH_EXPIRE:
+      case WIFI_REASON_4WAY_HANDSHAKE_TIMEOUT:
+      case WIFI_REASON_AUTH_FAIL:
+      case WIFI_REASON_HANDSHAKE_TIMEOUT:
+        this->setup_wifi_state_ = SETUP_WRONG_PASSWORD;
+        return;
+      case WIFI_REASON_NO_AP_FOUND:
+      case WIFI_REASON_NO_AP_FOUND_W_COMPATIBLE_SECURITY:
+      case WIFI_REASON_NO_AP_FOUND_IN_AUTHMODE_THRESHOLD:
+      case WIFI_REASON_NO_AP_FOUND_IN_RSSI_THRESHOLD:
+        this->setup_wifi_state_ = SETUP_NOT_FOUND;
+        return;
+      default:
+        break;
+    }
+  }
+  if (elapsed > 45000)
+    this->setup_wifi_state_ = SETUP_FAILED;
+}
+
+const char *BeonosComponent::setup_wifi_state() const {
+  switch (this->setup_wifi_state_) {
+    case SETUP_CONNECTING:
+      return "connecting";
+    case SETUP_CONNECTED:
+      return "connected";
+    case SETUP_WRONG_PASSWORD:
+      return "wrong_password";
+    case SETUP_NOT_FOUND:
+      return "not_found";
+    case SETUP_FAILED:
+      return "failed";
+    default:
+      return "idle";
+  }
 }
 
 void BeonosComponent::apply_search_(const SearchResult &result) {

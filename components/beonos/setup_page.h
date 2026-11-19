@@ -26,29 +26,36 @@ li:first-child button{border-top:0}
 li button[aria-pressed=true]{font-weight:600}
 li button span:first-child{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 label{display:block;font-weight:600;margin:0 0 6px}
-input[type=text],input[type=password]{width:100%;padding:12px;font:inherit;color:inherit;background:var(--card);border:1px solid var(--line);border-radius:10px;margin:0 0 16px}
+input[type=text],input[type=password]{width:100%;padding:12px;font:inherit;color:inherit;background:var(--card);border:1px solid var(--line);border-radius:10px;margin:0 0 10px}
 .check{display:flex;gap:10px;align-items:flex-start;font-weight:400;margin:0 0 16px}
 .check input{width:20px;height:20px;margin:2px 0 0}
 .submit{width:100%;padding:14px;font:inherit;font-weight:600;border:0;border-radius:10px;background:var(--accent);color:var(--accent-fg)}
 .submit:disabled{opacity:.4}
 .address{font-weight:600;word-break:break-all}
+.error{padding:12px 14px;border-radius:10px;background:#fde8e4;color:#7a1d0e}
+@media (prefers-color-scheme:dark){.error{background:#4a1c14;color:#ffd9d0}}
 [hidden]{display:none!important}
 </style></head><body><main>
 <section id="form">
 <h1>Set up Beonos</h1>
+<p class="error" id="err" role="alert" hidden></p>
 <p class="muted">Choose the Wi-Fi network your Sonos speaker is on. Beonos needs a 2.4&nbsp;GHz network.</p>
 <ul id="list"><li><button type="button" disabled><span>Looking for networks&hellip;</span></button></li></ul>
 <div id="other" hidden><label for="ssid">Network name</label><input id="ssid" type="text" autocomplete="off" autocapitalize="none" spellcheck="false"></div>
-<div id="pw" hidden><label for="psk">Password</label><input id="psk" type="password" autocomplete="current-password"></div>
+<div id="pw" hidden><label for="psk">Password</label><input id="psk" type="password" autocomplete="current-password" autocapitalize="none" spellcheck="false">
+<label class="check"><input id="showpw" type="checkbox"><span>Show password</span></label></div>
 <label class="check" id="autowrap" hidden><input id="auto" type="checkbox" checked><span>Install updates automatically<br><span class="muted">Updates install only while the turntable is off.</span></span></label>
 <p class="muted">After setup, you can change settings at<br><span class="address" id="addr1">this Beonos's own address</span></p>
 <button class="submit" id="go" type="button" disabled>Connect</button>
 </section>
-<section id="done" hidden>
+<section id="wait" hidden>
 <h1>Connecting&hellip;</h1>
-<p>Beonos is joining <strong id="joined"></strong>. Your phone will drop off this setup network in a moment, so switch it back to your usual Wi-Fi.</p>
+<p>Beonos is trying to join <strong class="ssidname"></strong>. Keep this page open; it takes up to a minute.</p>
+</section>
+<section id="done" hidden>
+<h1>Beonos is on your Wi-Fi</h1>
+<p>Beonos joined <strong class="ssidname"></strong>. Your phone will drop off this setup network in a moment, so switch it back to your usual Wi-Fi.</p>
 <p>To change settings later, open this address on the same Wi-Fi:<br><span class="address" id="addr2"></span></p>
-<p class="muted">If Beonos can't join, the setup network comes back within two minutes. Join it again and check the password.</p>
 </section>
 <script>
 (function(){
@@ -77,14 +84,31 @@ fetch('/config.json').then(function(r){return r.json()}).then(function(j){
  });
  row('Other network…','',null);
 }).catch(function(){list.textContent='';row('Other network…','',null)});
+document.getElementById('showpw').onchange=function(){pskIn.type=this.checked?'text':'password'};
+function show(id){['form','wait','done'].forEach(function(s){document.getElementById(s).hidden=s!==id})}
+function fail(msg){var e=document.getElementById('err');e.textContent=msg;e.hidden=false;show('form');go.disabled=false;(pw.hidden?go:pskIn).focus()}
+function watch(ssid,started,misses){
+ setTimeout(function(){
+  fetch('/beonos.json',{cache:'no-store'}).then(function(r){return r.json()}).then(function(j){
+   if(j.wifi==='connected')return show('done');
+   if(j.wifi==='wrong_password')return fail('Beonos couldn\u2019t join '+ssid+': the password was rejected. Check it and try again.');
+   if(j.wifi==='not_found')return fail('Beonos can\u2019t find '+ssid+'. It needs a 2.4\u00a0GHz network within reach.');
+   if(j.wifi==='failed'||Date.now()-started>60000)return fail('Beonos couldn\u2019t join '+ssid+'. Check the password and try again.');
+   watch(ssid,started,0);
+  }).catch(function(){
+   // The setup network goes away once Beonos has joined.
+   if(misses>=2)return show('done');
+   watch(ssid,started,misses+1);
+  });
+ },1500);
+}
 go.onclick=function(){
  var ssid=chosen?chosen.ssid:ssidIn.value.trim();if(!ssid){ssidIn.focus();return}
  var auto=document.getElementById('auto'),q='ssid='+encodeURIComponent(ssid)+'&psk='+encodeURIComponent(pw.hidden?'':pskIn.value)+
   (document.getElementById('autowrap').hidden?'':'&auto='+(auto.checked?'1':'0'));
- go.disabled=true;
- fetch('/wifisave?'+q).then(function(){
-  document.getElementById('joined').textContent=ssid;document.getElementById('form').hidden=true;document.getElementById('done').hidden=false;
- }).catch(function(){go.disabled=false});
+ go.disabled=true;document.getElementById('err').hidden=true;
+ Array.prototype.forEach.call(document.querySelectorAll('.ssidname'),function(n){n.textContent=ssid});
+ fetch('/wifisave?'+q).then(function(){show('wait');watch(ssid,Date.now(),0)}).catch(function(){go.disabled=false});
 };
 })();
 </script></main></body></html>
