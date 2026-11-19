@@ -22,6 +22,7 @@
 #include "esphome/core/helpers.h"
 #include "esphome/core/preferences.h"
 
+#include "setup_wifi.h"
 #include "sonos_client.h"
 #include "sonos_parse.h"
 
@@ -103,6 +104,8 @@ class BeonosComponent : public esphome::Component {
   void close_setup_window_();
   void on_setup_submitted_(bool has_auto, bool auto_on);
   void update_setup_wifi_state_();
+  static setup::Drop classify_drop_(uint16_t reason);
+  static void on_wifi_joined_(void *arg, const char *base, int32_t id, void *data);
   static void on_wifi_disconnected_(void *arg, const char *base, int32_t id, void *data);
 
   SonosClient client_;
@@ -151,13 +154,20 @@ class BeonosComponent : public esphome::Component {
   uint32_t last_search_{0};
   bool first_search_done_{false};
 
-  // Result of the last Wi-Fi save from the setup page.
-  enum SetupWifiState : uint8_t { SETUP_IDLE, SETUP_CONNECTING, SETUP_CONNECTED, SETUP_WRONG_PASSWORD, SETUP_NOT_FOUND, SETUP_FAILED };
-  std::atomic<uint8_t> setup_wifi_state_{SETUP_IDLE};
+  // Result of the last Wi-Fi save from the setup page: a setup::WifiResult,
+  // or SETUP_IDLE before the first save.
+  static constexpr uint8_t SETUP_IDLE = 0xFF;
+  std::atomic<uint8_t> setup_result_{SETUP_IDLE};
   uint32_t setup_attempt_started_{0};
+  uint32_t joins_at_attempt_{0};
   uint32_t disconnects_at_attempt_{0};
+  bool joined_since_attempt_{false};
+  uint32_t joined_at_{0};
+  uint32_t disconnects_at_join_{0};
+  // Counted by the Wi-Fi driver's event task.
+  std::atomic<uint32_t> joins_{0};
   std::atomic<uint32_t> disconnects_{0};
-  std::atomic<uint8_t> last_disconnect_reason_{0};
+  std::atomic<uint16_t> last_disconnect_reason_{0};
 
   uint32_t setup_window_ms_{15 * 60 * 1000};
   bool setup_window_closed_{false};

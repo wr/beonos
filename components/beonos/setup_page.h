@@ -93,6 +93,7 @@ function watch(ssid,started,misses){
    if(j.wifi==='connected')return show('done');
    if(j.wifi==='wrong_password')return fail('Beonos couldn\u2019t join '+ssid+': the password was rejected. Check it and try again.');
    if(j.wifi==='not_found')return fail('Beonos can\u2019t find '+ssid+'. It needs a 2.4\u00a0GHz network within reach.');
+   if(j.wifi==='no_address')return fail('Beonos joined '+ssid+', but your router didn\u2019t give it an IP address. Restart your router or check its settings, then try again.');
    if(j.wifi==='failed'||Date.now()-started>60000)return fail('Beonos couldn\u2019t join '+ssid+'. Check the password and try again.');
    watch(ssid,started,0);
   }).catch(function(){

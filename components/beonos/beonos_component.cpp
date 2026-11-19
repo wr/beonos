@@ -31,6 +31,7 @@ static constexpr uint32_t FIRST_SEARCH_DELAY_MS = 5000;
 static constexpr uint32_t SEARCH_INTERVAL_MS = 10 * 60 * 1000;
 static constexpr uint32_t MIN_SEARCH_GAP_MS = 60 * 1000;
 static constexpr uint32_t FAILURES_BEFORE_SEARCH = 5;
+static constexpr uint32_t SETUP_GRACE_MS = 1500;
 
 static const char *const OPTION_SEARCHING = "Searching\xE2\x80\xA6";
 static const char *const OPTION_CHOOSE = "Choose\xE2\x80\xA6";
@@ -122,6 +123,8 @@ void BeonosComponent::setup() {
     wifi::global_wifi_component->set_ap(ap);
   }
 
+  esp_event_handler_instance_register(WIFI_EVENT, WIFI_EVENT_STA_CONNECTED, &BeonosComponent::on_wifi_joined_, this,
+                                      nullptr);
   esp_event_handler_instance_register(WIFI_EVENT, WIFI_EVENT_STA_DISCONNECTED, &BeonosComponent::on_wifi_disconnected_,
                                       this, nullptr);
 
@@ -178,8 +181,10 @@ void BeonosComponent::loop() {
 
   this->update_setup_wifi_state_();
 
+  // Only once the board is on its Wi-Fi: a board that never gets there keeps
+  // its setup network so the details can be fixed.
   if (!this->setup_window_closed_ && now > this->setup_window_ms_ && wifi::global_wifi_component != nullptr &&
-      wifi::global_wifi_component->has_sta()) {
+      wifi::global_wifi_component->is_connected()) {
     this->close_setup_window_();
   }
 }
@@ -193,8 +198,9 @@ void BeonosComponent::search_now() {
 
 void BeonosComponent::close_setup_window_() {
   this->setup_window_closed_ = true;
-  // No fallback setup network from now on. One that is already up (the board
-  // never reached its Wi-Fi since power-up) stays until the board connects.
+  // No fallback setup network from now on, even if the Wi-Fi drops. If it
+  // stays down, ESPHome restarts the board after 15 minutes and setup opens
+  // again.
   wifi::global_wifi_component->set_ap_timeout(0);
 #ifdef USE_ESP32_BLE
   if (esp32_ble::global_ble != nullptr)
@@ -205,6 +211,12 @@ void BeonosComponent::close_setup_window_() {
 
 // ── Setup page feedback ─────────────────────────────────────────────────────
 
+// Joined: the router accepted the password. ESP-IDF reports this only after
+// the WPA handshake, so a wrong password never gets here.
+void BeonosComponent::on_wifi_joined_(void *arg, const char *base, int32_t id, void *data) {
+  static_cast<BeonosComponent *>(arg)->joins_++;
+}
+
 void BeonosComponent::on_wifi_disconnected_(void *arg, const char *base, int32_t id, void *data) {
   auto *self = static_cast<BeonosComponent *>(arg);
   auto *event = static_cast<wifi_event_sta_disconnected_t *>(data);
@@ -212,61 +224,75 @@ void BeonosComponent::on_wifi_disconnected_(void *arg, const char *base, int32_t
   self->disconnects_++;
 }
 
+setup::Drop BeonosComponent::classify_drop_(uint16_t reason) {
+  switch (reason) {
+    case WIFI_REASON_AUTH_EXPIRE:
+    case WIFI_REASON_4WAY_HANDSHAKE_TIMEOUT:
+    case WIFI_REASON_AUTH_FAIL:
+    case WIFI_REASON_HANDSHAKE_TIMEOUT:
+      return setup::Drop::PASSWORD;
+    case WIFI_REASON_NO_AP_FOUND:
+    case WIFI_REASON_NO_AP_FOUND_W_COMPATIBLE_SECURITY:
+    case WIFI_REASON_NO_AP_FOUND_IN_AUTHMODE_THRESHOLD:
+    case WIFI_REASON_NO_AP_FOUND_IN_RSSI_THRESHOLD:
+      return setup::Drop::NOT_FOUND;
+    default:
+      return setup::Drop::OTHER;
+  }
+}
+
 void BeonosComponent::on_setup_submitted_(bool has_auto, bool auto_on) {
   if (has_auto)
     this->on_setup_auto_update(auto_on);
   this->setup_attempt_started_ = millis();
+  this->joins_at_attempt_ = this->joins_;
   this->disconnects_at_attempt_ = this->disconnects_;
-  this->setup_wifi_state_ = SETUP_CONNECTING;
+  this->joined_since_attempt_ = false;
+  this->setup_result_ = static_cast<uint8_t>(setup::WifiResult::CONNECTING);
 }
 
 void BeonosComponent::update_setup_wifi_state_() {
-  if (this->setup_wifi_state_ != SETUP_CONNECTING)
+  if (this->setup_result_ != static_cast<uint8_t>(setup::WifiResult::CONNECTING))
     return;
-  const uint32_t elapsed = millis() - this->setup_attempt_started_;
-  if (wifi::global_wifi_component->is_connected()) {
-    this->setup_wifi_state_ = SETUP_CONNECTED;
-    return;
-  }
+  const uint32_t now = millis();
+  const uint32_t elapsed = now - this->setup_attempt_started_;
+  const uint32_t joins = this->joins_;
+  const uint32_t disconnects = this->disconnects_;
   // Ignore the first moment: an attempt with the old details may still be
   // finishing when the new ones are saved.
-  if (elapsed > 1500 && this->disconnects_ != this->disconnects_at_attempt_) {
-    switch (this->last_disconnect_reason_) {
-      case WIFI_REASON_AUTH_EXPIRE:
-      case WIFI_REASON_4WAY_HANDSHAKE_TIMEOUT:
-      case WIFI_REASON_AUTH_FAIL:
-      case WIFI_REASON_HANDSHAKE_TIMEOUT:
-        this->setup_wifi_state_ = SETUP_WRONG_PASSWORD;
-        return;
-      case WIFI_REASON_NO_AP_FOUND:
-      case WIFI_REASON_NO_AP_FOUND_W_COMPATIBLE_SECURITY:
-      case WIFI_REASON_NO_AP_FOUND_IN_AUTHMODE_THRESHOLD:
-      case WIFI_REASON_NO_AP_FOUND_IN_RSSI_THRESHOLD:
-        this->setup_wifi_state_ = SETUP_NOT_FOUND;
-        return;
-      default:
-        break;
-    }
+  if (elapsed <= SETUP_GRACE_MS) {
+    this->joins_at_attempt_ = joins;
+    this->disconnects_at_attempt_ = disconnects;
+    return;
   }
-  if (elapsed > 45000)
-    this->setup_wifi_state_ = SETUP_FAILED;
+  if (!this->joined_since_attempt_ && joins != this->joins_at_attempt_) {
+    this->joined_since_attempt_ = true;
+    this->joined_at_ = now;
+    this->disconnects_at_join_ = disconnects;
+  }
+
+  setup::Attempt attempt;
+  attempt.elapsed_ms = elapsed;
+  attempt.has_address = wifi::global_wifi_component->is_connected();
+  attempt.joined = this->joined_since_attempt_;
+  if (attempt.joined) {
+    attempt.joined_for_ms = now - this->joined_at_;
+    attempt.dropped_after_join = disconnects != this->disconnects_at_join_;
+  }
+  if (disconnects != this->disconnects_at_attempt_)
+    attempt.last_drop = classify_drop_(this->last_disconnect_reason_);
+
+  const setup::WifiResult result = setup::judge_attempt(attempt);
+  if (result != setup::WifiResult::CONNECTING)
+    ESP_LOGI(TAG, "Setup page: Wi-Fi %s", setup::result_name(result));
+  this->setup_result_ = static_cast<uint8_t>(result);
 }
 
 const char *BeonosComponent::setup_wifi_state() const {
-  switch (this->setup_wifi_state_) {
-    case SETUP_CONNECTING:
-      return "connecting";
-    case SETUP_CONNECTED:
-      return "connected";
-    case SETUP_WRONG_PASSWORD:
-      return "wrong_password";
-    case SETUP_NOT_FOUND:
-      return "not_found";
-    case SETUP_FAILED:
-      return "failed";
-    default:
-      return "idle";
-  }
+  const uint8_t result = this->setup_result_;
+  if (result == SETUP_IDLE)
+    return "idle";
+  return setup::result_name(static_cast<setup::WifiResult>(result));
 }
 
 void BeonosComponent::apply_search_(const SearchResult &result) {
